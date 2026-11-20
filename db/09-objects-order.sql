@@ -1068,5 +1068,3 @@ CREATE OR ALTER TRIGGER garment.trg_no_delete_taxes ON garment.taxes INSTEAD OF 
 AS BEGIN SET NOCOUNT ON; THROW 50040, 'Data transaksi tidak boleh dihapus (RB-57).', 1; END;
 GO
 
-PRINT '09-objects-order.sql selesai: 3 function, 4 view, 6 SP, 17 trigger B dibuat.';
-GO
