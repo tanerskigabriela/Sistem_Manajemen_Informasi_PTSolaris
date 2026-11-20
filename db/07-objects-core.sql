@@ -137,13 +137,14 @@ GO
 -- SP ini dipanggil; backend mengirim hasilnya lewat @success.
 --   @success = 1 : reset hitungan gagal, isi last_login_at, buat sesi, catat LOGIN_BERHASIL.
 --   @success = 0 : tambah failed_login_count, kunci akun pada kegagalan ke-5
---                  (catat LOGIN_GAGAL dan AKUN_TERKUNCI). Username tak dikenal tetap dicatat.
+--                  (catat LOGIN_GAGAL dan AKUN_TERKUNCI, kirim notifikasi N-11 ke semua Admin aktif).
+--                  Username tak dikenal tetap dicatat.
 -- Output: @session_id (sesi baru bila berhasil), @is_locked (akun terkunci setelah panggilan ini).
 CREATE PROCEDURE app.sp_record_login
     @username    VARCHAR(50),
     @success     BIT,
-    @device      NVARCHAR(150) = NULL,
-    @ip_address  VARCHAR(45)   = NULL,
+    @device      NVARCHAR(150),
+    @ip_address  VARCHAR(45),
     @session_id  UNIQUEIDENTIFIER = NULL OUTPUT,
     @is_locked   BIT = 0 OUTPUT
 AS
@@ -154,6 +155,7 @@ BEGIN
     DECLARE @own_tran  BIT = CASE WHEN @@TRANCOUNT = 0 THEN 1 ELSE 0 END;
     DECLARE @user_id   UNIQUEIDENTIFIER, @failed TINYINT, @was_locked BIT, @active BIT;
     DECLARE @new_sess  TABLE (id UNIQUEIDENTIFIER);
+    DECLARE @admin UNIQUEIDENTIFIER, @msg NVARCHAR(300);
 
     IF @own_tran = 1 BEGIN TRANSACTION;
 
@@ -199,8 +201,26 @@ BEGIN
         VALUES (@user_id, @username, 'LOGIN_GAGAL', @device, @ip_address);
 
         IF @failed >= 5 AND @was_locked = 0
+        BEGIN
             INSERT INTO app.activity_logs (user_id, username, action_type, resource_type, resource_id, device, ip_address)
             VALUES (@user_id, @username, 'AKUN_TERKUNCI', 'app.users', CAST(@user_id AS VARCHAR(36)), @device, @ip_address);
+
+            -- N-11: beri tahu semua Admin aktif bahwa akun baru saja terkunci
+            SET @msg = CONCAT(N'Akun ', @username, N' terkunci setelah 5 kali gagal login.');
+            DECLARE admin_cur CURSOR LOCAL FAST_FORWARD FOR
+                SELECT id FROM app.users WHERE role_code = 'ADMIN' AND is_active = 1;
+            OPEN admin_cur;
+            FETCH NEXT FROM admin_cur INTO @admin;
+            WHILE @@FETCH_STATUS = 0
+            BEGIN
+                EXEC app.sp_create_notification
+                     @recipient_id = @admin, @event_code = 'N-11',
+                     @message = @msg, @link = '/pengguna';
+                FETCH NEXT FROM admin_cur INTO @admin;
+            END
+            CLOSE admin_cur;
+            DEALLOCATE admin_cur;
+        END
 
         SET @is_locked = CASE WHEN @failed >= 5 OR @was_locked = 1 THEN 1 ELSE 0 END;
     END
@@ -217,7 +237,7 @@ CREATE PROCEDURE app.sp_reset_password
     @new_password_hash VARCHAR(100),
     @handled_by        UNIQUEIDENTIFIER,          -- app.users.id admin yang melakukan reset
     @device            NVARCHAR(150) = NULL,
-    @ip_address        VARCHAR(45)   = NULL
+    @ip_address        VARCHAR(45)
 AS
 BEGIN
     SET NOCOUNT ON;
