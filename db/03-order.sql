@@ -16,7 +16,7 @@ CREATE TABLE garment.buyers (
     address NVARCHAR(200) NOT NULL,   
     city NVARCHAR(50) NOT NULL,  
     tax_id_no VARCHAR(30) NULL,   -- NPWP atau Tax ID
-    default_currency CHAR(3) OT NULL CONSTRAINT df_buyers_currency DEFAULT 'IDR',
+    default_currency CHAR(3) NOT NULL CONSTRAINT df_buyers_currency DEFAULT 'IDR',
     payment_term_days SMALLINT NOT NULL CONSTRAINT df_buyers_term     DEFAULT 30,
     credit_limit DECIMAL(16,2) NULL,
     created_at DATETIME2(0) NOT NULL CONSTRAINT df_buyers_created  DEFAULT SYSDATETIME(),
