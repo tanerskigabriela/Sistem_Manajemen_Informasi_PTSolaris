@@ -452,3 +452,49 @@ CREATE TABLE garment.shipment_trackings (
     CONSTRAINT fk_shipment_trackings_shipment FOREIGN KEY (shipment_id) REFERENCES garment.shipments (id)
 );
 GO
+
+/* =====================================================================
+   INDEX  (TSD 4.4 Indexing Strategy, disesuaikan dengan nama tabel v2)
+   ===================================================================== */
+
+-- Riwayat status pada detail order 
+CREATE INDEX ix_order_status_history_order_changed
+    ON garment.order_status_history (order_id, changed_at);
+GO
+
+-- Nomor urut barang per buyer, fn_next_item_code 
+CREATE INDEX ix_items_buyer
+    ON garment.items (buyer_id);
+GO
+
+-- Daftar persetujuan dan dashboard
+CREATE INDEX ix_orders_status_deadline
+    ON garment.orders (status, deadline);
+GO
+
+-- Filter buyer dan riwayat harga 
+CREATE INDEX ix_orders_buyer_date
+    ON garment.orders (buyer_id, order_date);
+GO
+
+-- Riwayat harga per kode barang 
+CREATE INDEX ix_order_details_item
+    ON garment.order_details (item_id);
+GO
+
+-- Riwayat pengiriman per order 
+CREATE INDEX ix_shipments_order_date
+    ON garment.shipments (order_id, ship_date);
+GO
+
+-- Total terkirim per style dan ukuran, fn_ready_to_ship 
+CREATE INDEX ix_shipment_items_detail_size
+    ON garment.shipment_items (order_detail_id, size);
+GO
+
+-- Pembatalan per order, dipakai fn_cancellation_penalty 
+CREATE INDEX ix_order_cancellations_order
+    ON garment.order_cancellations (order_id);
+GO
+
+
