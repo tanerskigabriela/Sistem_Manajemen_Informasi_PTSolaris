@@ -4,11 +4,12 @@
 -- Dijalankan setelah 00-06 dan 07-objects-core.sql (milik A).
 --
 -- Bergantung pada objek milik A (07-objects-core.sql):
---   garment.fn_next_doc_no(@prefix, @at)          -> nomor SPK
---   app.sp_create_notification(@event_code, @role_codes, @message,
---                              @link, @dedup_key, @created OUTPUT)
---   [CEK DENGAN A] schema dan parameter kedua objek ini harus sama.
---   Parameter sp_create_notification mengikuti TSD 5.1.
+--   app.fn_next_doc_no(@prefix, @at)                   -> nomor SPK
+--   app.sp_create_notification(@recipient_id, @event_code, @message,
+--                              @link, @dedup_key)      -> satu penerima
+--   Notifikasi ke satu atau beberapa role dikirim lewat garment.sp_notify_roles
+--   (di file ini), yang memanggil app.sp_create_notification untuk setiap
+--   pengguna aktif pada role tersebut.
 --
 -- Pola transaksi: SP hanya membuka transaksi sendiri bila belum ada
 -- transaksi dari luar (@@TRANCOUNT = 0). Bila dipanggil dari service
@@ -386,6 +387,40 @@ GO
    3. STORED PROCEDURES
    ===================================================================== */
 
+/* ---------- sp_notify_roles (pembantu notifikasi) ----------
+   Mengirim satu notifikasi ke setiap pengguna aktif pada role yang disebut
+   (dipisah koma), lewat app.sp_create_notification milik A yang menerima
+   satu penerima per panggilan. dedup_key tetap dicek per penerima oleh A. */
+CREATE OR ALTER PROCEDURE garment.sp_notify_roles
+    @event_code CHAR(4),
+    @role_codes VARCHAR(100),
+    @message    NVARCHAR(300),
+    @link       VARCHAR(200) = NULL,
+    @dedup_key  VARCHAR(80)  = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @recipient UNIQUEIDENTIFIER;
+
+    DECLARE r CURSOR LOCAL FAST_FORWARD FOR
+        SELECT u.id
+        FROM app.users u
+        JOIN STRING_SPLIT(@role_codes, ',') x ON u.role_code = LTRIM(RTRIM(x.value))
+        WHERE u.is_active = 1;
+    OPEN r;
+    FETCH NEXT FROM r INTO @recipient;
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        EXEC app.sp_create_notification
+             @recipient_id = @recipient, @event_code = @event_code, @message = @message,
+             @link = @link, @dedup_key = @dedup_key;
+        FETCH NEXT FROM r INTO @recipient;
+    END;
+    CLOSE r;
+    DEALLOCATE r;
+END;
+GO
+
 /* ---------- sp_submit_spk (RB-29 s.d. RB-32, RB-68; TSD 5.1) ----------
    @sizes: JSON, mis. '[{"size":"S","qty":100},{"size":"M","qty":120}]'
    @result: SUCCESS | NOT_FOUND | ORDER_NOT_APPROVED (ERR-SPK-01) |
@@ -442,7 +477,7 @@ BEGIN
     BEGIN TRY
         IF @own_tran = 1 BEGIN TRANSACTION;
 
-        SET @spk_no = garment.fn_next_doc_no('SPK', CAST(SYSDATETIME() AS DATE));
+        SET @spk_no = app.fn_next_doc_no('SPK', CAST(SYSDATETIME() AS DATE));
 
         DECLARE @new TABLE (id UNIQUEIDENTIFIER);
         INSERT INTO garment.spk (spk_no, order_detail_id, line_id, created_by, materials_complete_by, target_date)
@@ -454,10 +489,9 @@ BEGIN
         SELECT @spk_id, size, qty FROM @s;
 
         DECLARE @msg NVARCHAR(300) = CONCAT(N'SPK ', @spk_no, N' untuk order ', @order_code, N' menunggu persetujuan.');
-        DECLARE @created INT;
-        EXEC app.sp_create_notification
+        EXEC garment.sp_notify_roles
              @event_code = 'N-02', @role_codes = 'PIMPINAN', @message = @msg,
-             @link = '/persetujuan', @dedup_key = NULL, @created = @created OUTPUT;
+             @link = '/persetujuan', @dedup_key = NULL;
 
         IF @own_tran = 1 COMMIT TRANSACTION;
         SET @result = 'SUCCESS';
@@ -491,7 +525,7 @@ BEGIN
 
     DECLARE @own_tran BIT = CASE WHEN @@TRANCOUNT = 0 THEN 1 ELSE 0 END;
     DECLARE @spk_status VARCHAR(20), @spk_no CHAR(12), @order_id UNIQUEIDENTIFIER,
-            @order_status VARCHAR(20), @order_code CHAR(12), @created INT, @msg NVARCHAR(300);
+            @order_status VARCHAR(20), @order_code CHAR(12), @msg NVARCHAR(300);
 
     BEGIN TRY
         IF @own_tran = 1 BEGIN TRANSACTION;
@@ -528,9 +562,9 @@ BEGIN
             END;
 
             SET @msg = CONCAT(N'SPK ', @spk_no, N' untuk order ', @order_code, N' disetujui.');
-            EXEC app.sp_create_notification
+            EXEC garment.sp_notify_roles
                  @event_code = 'N-05', @role_codes = 'PPIC,SPV', @message = @msg,
-                 @link = '/spk', @dedup_key = NULL, @created = @created OUTPUT;
+                 @link = '/spk', @dedup_key = NULL;
         END
         ELSE
         BEGIN
@@ -541,9 +575,9 @@ BEGIN
 
             SET @msg = CONCAT(N'SPK ', @spk_no, N' untuk order ', @order_code, N' ditolak. Alasan: ', @reason);
             SET @msg = LEFT(@msg, 300);
-            EXEC app.sp_create_notification
+            EXEC garment.sp_notify_roles
                  @event_code = 'N-05', @role_codes = 'PPIC', @message = @msg,
-                 @link = '/spk', @dedup_key = NULL, @created = @created OUTPUT;
+                 @link = '/spk', @dedup_key = NULL;
         END;
 
         IF @own_tran = 1 COMMIT TRANSACTION;
@@ -615,7 +649,7 @@ BEGIN
 
         -- notifikasi saat tanda berubah 0 -> 1; dedup_key menjamin sekali per style
         DECLARE @id UNIQUEIDENTIFIER, @label NVARCHAR(150), @kind CHAR(4),
-                @msg NVARCHAR(300), @key VARCHAR(80), @created INT;
+                @msg NVARCHAR(300), @key VARCHAR(80);
 
         DECLARE c CURSOR LOCAL FAST_FORWARD FOR
             SELECT order_detail_id, label, 'N-07' FROM @t WHERE old_risk = 0 AND new_risk = 1
@@ -630,9 +664,9 @@ BEGIN
                          ELSE CONCAT(N'Persentase tidak lolos style ', @label, N' melebihi batas reject.')
                        END;
             SET @key = CONCAT(@kind, ':', CAST(@id AS VARCHAR(36)));
-            EXEC app.sp_create_notification
+            EXEC garment.sp_notify_roles
                  @event_code = @kind, @role_codes = 'PIMPINAN,PPIC', @message = @msg,
-                 @link = '/dashboard', @dedup_key = @key, @created = @created OUTPUT;
+                 @link = '/dashboard', @dedup_key = @key;
             FETCH NEXT FROM c INTO @id, @label, @kind;
         END;
         CLOSE c;
