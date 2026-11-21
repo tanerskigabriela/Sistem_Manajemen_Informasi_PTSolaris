@@ -4,7 +4,7 @@ import { getPool, type PoolName } from './pool';
 import * as schema from './schema';
 
 function createDrizzle(pool: sql.ConnectionPool) {
-  return drizzle({ client: pool, schema });
+  return drizzle({ client: pool });
 }
 
 export type DbInstance = ReturnType<typeof createDrizzle>;
