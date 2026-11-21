@@ -6,6 +6,7 @@ import {
 } from 'express';
 import { getPool } from '../db/pool';
 import { sendSuccess } from '../utils/response';
+import orderRoutes from "./order.routes";
 
 const router = Router();
 
@@ -41,6 +42,7 @@ router.get(
 
 // Router modul A (auth, users, sessions, password-reset-requests, activity-logs, notifications)
 // Router modul B (buyers, product-types, items, order-levels, orders, price-history, dashboard, reports, expeditions, shipments)
+router.use(orderRoutes);
 // Router modul C (suppliers, raw-materials, order-details, production-lines, spk, progress, qc-standards, defect-types, qc-results)
 
 import produksiRoutes from './produksi.routes';
