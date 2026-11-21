@@ -2,7 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { ROLE } from "../constants";
 import type { ListOrdersQuery } from "../schemas/orders.schema";
 import { OrderService } from "../services/orders.service";
-import { getActor, getRequestMeta } from "../utils/actor";
+import { getActor, getRequestMeta } from "../utils/order-actor";
 import { sendSuccess } from "../utils/response";
 
 const service = new OrderService();

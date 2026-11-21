@@ -2,7 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { ROLE } from "../constants";
 import type { ListItemsQuery } from "../schemas/orders.schema";
 import { MasterDataService } from "../services/master-data.service";
-import { getActor } from "../utils/actor";
+import { getActor } from "../utils/order-actor";
 import { sendSuccess } from "../utils/response";
 
 const service = new MasterDataService();

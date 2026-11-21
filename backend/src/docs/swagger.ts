@@ -26,9 +26,8 @@ export const swaggerDocument = {
   ],
   components: { securitySchemes: produksiSecuritySchemes },
   paths: {
-    "/health": {
     ...produksiPaths,
-    '/health': {
+    "/health": {
       get: {
         tags: ["System"],
         summary: "Cek kesehatan backend dan koneksi SQL Server",

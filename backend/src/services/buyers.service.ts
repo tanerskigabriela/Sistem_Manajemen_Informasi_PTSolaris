@@ -6,7 +6,7 @@ import type {
   ListBuyersQuery,
   UpdateBuyerInput,
 } from "../schemas/buyers.schema";
-import type { Actor } from "../utils/actor";
+import type { Actor } from "../utils/order-actor";
 import { AppError } from "../utils/errors";
 import { BaseService } from "./base.service";
 
