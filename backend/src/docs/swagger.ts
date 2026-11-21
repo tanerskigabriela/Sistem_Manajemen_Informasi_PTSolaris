@@ -1,5 +1,6 @@
 import { orderSwaggerPaths, orderSwaggerTags } from "./order.swagger";
 
+import { produksiPaths, produksiSecuritySchemes, produksiTags } from './produksi.swagger';
 
 export const swaggerDocument = {
   openapi: "3.0.3",
@@ -21,9 +22,13 @@ export const swaggerDocument = {
       description: "Pemeriksaan kesehatan layanan dan koneksi database",
     },
     ...orderSwaggerTags,
+    ...produksiTags,
   ],
+  components: { securitySchemes: produksiSecuritySchemes },
   paths: {
     "/health": {
+    ...produksiPaths,
+    '/health': {
       get: {
         tags: ["System"],
         summary: "Cek kesehatan backend dan koneksi SQL Server",
