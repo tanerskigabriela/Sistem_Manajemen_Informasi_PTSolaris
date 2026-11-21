@@ -43,4 +43,7 @@ router.get(
 // Router modul B (buyers, product-types, items, order-levels, orders, price-history, dashboard, reports, expeditions, shipments)
 // Router modul C (suppliers, raw-materials, order-details, production-lines, spk, progress, qc-standards, defect-types, qc-results)
 
+import produksiRoutes from './produksi.routes';
+router.use(produksiRoutes);
+
 export default router;
