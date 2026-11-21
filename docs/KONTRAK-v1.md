@@ -1,200 +1,98 @@
-# KONTRAK.md pertama (DRAF) — Project Solaris, Database Gabungan RSI + SMBD
+> **Arsip KONTRAK v1 (14-16/11/2026).** Disimpan karena KONTRAK.md (v2) merujuk ke sini untuk
+> format API, login, struktur folder, log aktivitas, halaman frontend, dan aturan Git.
+> **Bagian tabel, kolom, status, role, objek database, dan endpoint di file ini SUDAH DIGANTI v2.**
+> Bila ada perbedaan, yang berlaku selalu KONTRAK.md (v2).
 
-Status: **draf untuk dibahas kelompok**, belum berlaku. Disusun 19/11/2026.
+# KONTRAK.md — Project Solaris (Kelompok 1, RSI Kelas A)
 
-Kontrak ini menggantikan KONTRAK v1 setelah database RSI dan SMBD disatukan. Dasarnya adalah dokumen *Skema Konseptual Database Gabungan* (70 entitas, 135 relasi) ditambah keputusan kelompok tanggal 19/11/2026 (Bagian 1). Kontrak ini berisi nama tabel dan kolom fisik, nilai status, role, pembagian file, API, dan halaman.
+Kontrak ini berisi kesepakatan bersama anggota kelompok yaitu nama tabel dan kolom, nilai status, nama role, format response API, kepemilikan file, dan cara mencatat log. Sumber utamanya TSD v1.1 (Bagian 3, 4, 5) dan FSD v2.0 (Bagian 4 dan 6).
+---
 
-Bagian yang ditulis "sama dengan v1" (format API, login, pola transaksi, struktur folder, aturan Git) merujuk ke KONTRAK v1. **Simpan KONTRAK v1 di repo sebagai `docs/KONTRAK-v1.md`** supaya bisa dibuka semua anggota. Semua tabel dan nilai status sudah ditulis lengkap di kontrak ini.
+## 1. Pembagian anggota
 
-Hal yang masih menunggu keputusan atau jawaban dosen ditandai **[TERBUKA]** dan dikumpulkan di Bagian 17.
+| Kode | Bagian | Role yang dilayani |
+|---|---|---|
+| A | Fondasi dan Admin: repo, skrip inti, kerangka backend, login dan middleware, layout dan menu, komponen UI bersama, log aktivitas, fitur admin, notifikasi | ADMIN, semua role |
+| B | Order dan Pengiriman: buyer, order, persetujuan kontrak, pembatalan, riwayat harga, dashboard, rekap, pengiriman dan surat jalan | MARKETING, PIMPINAN |
+| C | Produksi: supplier, bahan baku, SPK dan persetujuannya, progres harian, hasil QC, salinan bertanda tangan | PPIC, SPV, QC |
+
+Nama anggota:
+
+- A = Tanerski Gabriela Gienaldi
+- B = Nabila Azahra Putri
+- C = Sausan Nisa Zhaafirah 
 
 ---
 
-## 1. Keputusan dasar (19/11/2026)
+## 2. File skrip database dan pemiliknya
 
-| No | Keputusan |
-|---|---|
-| K-01 | Satu database `solaris_db` (SQL Server 2022) untuk RSI dan SMBD, dengan dua schema: `app` (tabel sistem) dan `garment` (tabel bisnis pabrik). |
-| K-02 | Struktur RSI dirombak mengikuti skema gabungan. Waktu rombak 5 hari. |
-| K-03 | SPK dibuat **per style** (satu baris `order_details`, yaitu satu style + satu warna), dengan rincian ukuran di `spk_sizes`. |
-| K-04 | Detail order dipecah dua: `order_details` (per style + warna) dan entitas lemah `order_detail_sizes` (per ukuran). |
-| K-05 | Fitur salinan bertanda tangan (`signed_documents`) **dibuang**. Bisa ditambahkan lagi kalau ada sisa waktu. |
-| K-06 | Multi-pabrik tetap dipakai. Relasi wajib diisi otomatis kalau bisa (Bagian 4.0). Data RSI belum disaring per pabrik. |
-| K-07 | Fitur SMBD berbobot ringan dan sedang dimasukkan ke RSI (Bagian 14.1). Fitur berat hanya ada di bagian SMBD. |
-| K-08 | Data master untuk fitur tambahan (lini, standar QC, jenis cacat, kebijakan pembatalan, level order, ekspedisi, bahan baku, BOM) dikelola oleh SUPERADMIN di bagian SMBD. Halaman RSI hanya memilih dari daftar. |
-| K-09 | Supervisor hanya mengisi jumlah selesai. Reject hanya berasal dari QC. `production_progress` tidak punya kolom masuk dan reject. |
-| K-10 | Bagian SMBD tampil di web yang sama, hanya untuk role `SUPERADMIN`. Bagian ini tidak didemokan di RSI. **[TERBUKA: konfirmasi Pak Bawi]** |
-| K-11 | Pencatat aktivitas bisnis (pembuat order, penyetuju SPK, pencatat progres, dst.) disimpan sebagai `employee_id`, bukan `user_id`. Siapa yang login tetap tercatat di `app.activity_logs`. |
-| K-12 | Satu surat jalan (`shipments`) hanya untuk satu order, tetapi boleh berisi banyak barang. Satu order boleh dikirim bertahap. Aturan bisnis SMBD nomor 11 disesuaikan. *(20/11/2026)* |
-
----
-
-## 2. Pembagian anggota (USULAN, dibahas)
-
-| Kode | Bagian | Tabel (jumlah) | Role RSI yang dilayani |
-|---|---|---|---|
-| A | Fondasi, Admin, Organisasi & SDM, Akuntansi | app (6), organisasi & SDM (12), gudang & rak (2), akun, rekening, jurnal, gaji (5) = **25** | ADMIN, SUPERADMIN, semua role |
-| B | Order, Pengiriman & Ekspor, Penjualan & Pajak | buyer, produk, order, pembatalan (12), pengiriman & ekspor (8), pajak, invoice, tagihan, pembayaran (5) = **25** | MARKETING, PIMPINAN |
-| C | Produksi & QC, Supply Chain, Stok, Aset | produksi & QC (9), supply chain (11), stok (4), aset (3) = **27** | PPIC, SPV, QC |
-
-Total **77 tabel fisik** = 70 entitas di skema konseptual + 2 entitas lemah yang dikembalikan (`order_detail_sizes`, `spk_sizes`) + 3 tabel dari relasi M:N dan ternary (`employee_skills`, `bom`, `supplier_materials`) + 2 tabel dari atribut multivalued (`order_level_payment_methods`, `expedition_transport_modes`). Rinciannya ada di Bagian 4.
-
-Nama anggota: A = Tanerski Gabriela Gienaldi, B = Nabila Azzahra Putri, C = Sausan Nisa Zhaafirah *(tetap seperti v1, boleh ditukar)*.
-
----
-
-## 3. File skrip database dan urutannya
-
-Semua skrip ada di `db/` dan dijalankan **berurutan**. Antarobjek dipisah `GO`. Urutan file mengikuti ketergantungan FK, jadi satu anggota bisa punya lebih dari satu file.
+Semua skrip SQL ada di folder `db/` dan dijalankan **berurutan dari nomor terkecil**. Setiap objek (tabel, function, procedure, view, trigger) dipisah dengan baris `GO`, supaya skripnya bisa dijalankan di SSMS maupun DBeaver.
 
 | Urutan | File | Pemilik | Isi |
 |---|---|---|---|
-| 0 | `00-reset.sql` | A | `DROP DATABASE` bila ada, `CREATE DATABASE solaris_db`, `CREATE SCHEMA app`, `CREATE SCHEMA garment` |
-| 1 | `01-org.sql` | A | factories, countries, production_stages, divisions, positions, shifts, employees, employment_contracts, skills, employee_skills, interns, attendances, warehouses, rack_locations |
-| 2 | `02-app.sql` | A | roles, users, sessions, activity_logs, password_reset_requests, notifications |
-| 3 | `03-order.sql` | B | buyers, order_levels, order_level_payment_methods, product_types, items, item_variants, orders, order_status_history, order_details, order_detail_sizes, cancellation_policies, order_cancellations, expeditions, expedition_transport_modes, vehicles, routes, shipments, shipment_items, export_documents, shipment_trackings |
-| 4 | `04-produksi.sql` | C | production_lines, spk, spk_sizes, production_progress, suppliers, material_categories, raw_materials, bom, supplier_materials, order_materials, material_usages, purchase_orders, purchase_order_items, material_receipts, material_receipt_items, import_documents, qc_standards, defect_types, qc_results, qc_defects, material_stocks, product_stocks, stock_movements, stock_counts, facilities, equipment, maintenances |
-| 5 | `05-akuntansi.sql` | A | accounts, company_bank_accounts, journals, journal_lines, payrolls |
-| 6 | `06-penjualan.sql` | B | tax_types, taxes, sales_invoices, supplier_bills, payments |
-| 7 | `07-objects-core.sql` | A | function, SP, view, trigger milik A (Bagian 5) |
-| 8 | `08-objects-produksi.sql` | C | function, SP, view, trigger milik C |
-| 9 | `09-objects-order.sql` | B | function, SP, view, trigger milik B |
-| 10 | `10-security.sql` | A | login, user, role database, GRANT/DENY (Bagian 13) |
-| 11 | `90-seed-core.sql` | A | pabrik, negara, tahap, divisi, jabatan, shift, 7 karyawan, 7 role, 7 akun demo, gudang, rak, akun COA, rekening |
-| 12 | `91-seed-order.sql` | B | jenis produk, level order, kebijakan pembatalan, ekspedisi, buyer, barang + varian, minimal 1 order DISETUJUI lengkap dengan detail dan ukuran, jenis pajak |
-| 13 | `92-seed-produksi.sql` | C | lini, standar QC, jenis cacat, supplier, kategori bahan, bahan baku, BOM, bahan untuk order seed B |
+| 0 | `00-reset.sql` | A | `DROP DATABASE` bila ada, lalu `CREATE DATABASE solaris_db` |
+| 1 | `01-core.sql` | A | roles, users, sessions, activity_logs, password_reset_requests, notifications |
+| 2 | `02-order.sql` | B | buyers, product_types, items, orders, order_status_history, order_styles, order_style_sizes, shipments, shipment_items |
+| 3 | `03-produksi.sql` | C | suppliers, materials, spk, spk_sizes, production_progress, qc_results, signed_documents |
+| 4 | `04-objects-core.sql` | A | function, procedure, view, dan trigger milik A (Bagian 3) |
+| 5 | `05-objects-produksi.sql` | C | function, procedure, view, dan trigger milik C (Bagian 3) |
+| 6 | `06-objects-order.sql` | B | function, procedure, view, dan trigger milik B (Bagian 3) |
+| 7 | `90-seed-core.sql` | A | 6 role dan 6 akun demo (Bagian 12) |
+| 8 | `91-seed-order.sql` | B | jenis produk, buyer, barang, dan minimal 1 order berstatus DISETUJUI lengkap dengan style dan ukurannya |
+| 9 | `92-seed-produksi.sql` | C | 2 supplier dan bahan untuk order seed milik B |
 
 Catatan:
 
-- Relasi melingkar `divisions.head_employee_id → employees` dan `employees.division_id → divisions`: buat `divisions` tanpa kolom kepala dulu, lalu `ALTER TABLE ... ADD` FK setelah `employees` dibuat (di file 01).
-- Objek C (08) dijalankan sebelum objek B (09), karena view dashboard dan SP pengiriman milik B memakai function milik C.
-- Semua nama objek **wajib ditulis lengkap dengan schema**: `app.users`, `garment.orders`. Jangan bergantung pada schema default `dbo`.
-- Setiap perubahan tabel wajib lewat skrip di repo (R-03).
+- File 05 (C) dijalankan **sebelum** file 06 (B), karena `v_dashboard_orders` dan `sp_record_shipment` milik B memakai function milik C.
+- Data seed dipisah ke file 90–92, supaya file tabel bisa diubah tanpa ikut mengubah data.
+- Setiap perubahan tabel **wajib** lewat skrip di repo. Jangan mengubah tabel langsung di SSMS atau DBeaver tanpa menuliskannya ke skrip (R-03).
+- Menjalankan ulang dari nol: jalankan semua file mulai dari `00-reset.sql`.
 
 ---
 
-## 4. Tabel dan kolom
+## 3. Objek database (TSD Bagian 5) dan pemiliknya
 
-### 4.0 Konvensi
+| Pemilik | Stored procedure | Function | View | Trigger |
+|---|---|---|---|---|
+| A | sp_record_login, sp_reset_password, sp_create_notification | fn_next_doc_no (dipakai B dan C) | v_active_sessions, v_login_history | trg_activity_logs_append_only |
+| B | sp_create_order, sp_change_order_status, sp_record_shipment | fn_next_order_code, fn_next_item_code | v_order_summary, v_price_history, v_dashboard_orders, v_shipment_history | trg_orders_immutable, trg_no_delete_transactions (untuk tabel B) |
+| C | sp_submit_spk, sp_decide_spk, sp_evaluate_flags | fn_material_readiness, fn_material_locked, fn_stage_max_allowed, fn_style_completion_pct, fn_time_elapsed_pct, fn_reject_pct, fn_ready_to_ship, fn_next_doc_version | v_style_progress, v_supplier_materials, v_spk_list, v_latest_signed_documents | trg_materials_lock, trg_signed_documents_append_only, trg_no_delete_transactions (untuk tabel C) |
 
-- Nama tabel dan kolom `snake_case` bahasa Inggris. Nama tabel jamak, kecuali `spk`, `bom`, `equipment`.
-- PK fisik: `id UNIQUEIDENTIFIER DEFAULT NEWSEQUENTIALID()`, walaupun di skema konseptual key-nya bernama lain (mis. `spk_no`, `delivery_note_no`). Key alami seperti itu dijadikan `UNIQUE`.
-- Pengecualian PK:
-  - tabel kode memakai kode sebagai PK: `roles`, `product_types`, `countries`, `production_stages`, `order_levels`, `accounts`;
-  - entitas lemah memakai PK gabungan (pemilik + partial key);
-  - `activity_logs` dan `order_status_history` memakai `BIGINT IDENTITY`.
-- Teks `NVARCHAR`, kode `VARCHAR`/`CHAR`, uang `DECIMAL(16,2)`, waktu `DATETIME2(0) DEFAULT SYSDATETIME()`, tanggal `DATE`.
-- Status disimpan `VARCHAR` + `CHECK` (Bagian 6).
-- Atribut **derived** di skema tidak dibuat kolom. Nilainya dihitung lewat view atau function. Pengecualian: `is_at_risk` dan `is_over_reject` **disimpan**, karena notifikasi N-07/N-08 hanya dikirim saat flag pertama kali berubah.
-- Atribut **composite** dipecah menjadi kolom komponennya.
-- Tidak ada `ON DELETE CASCADE`. Data transaksi tidak dihapus.
+**Titik sambung antarmodul.** Function milik satu anggota yang dipakai anggota lain:
 
-**Relasi wajib yang diisi otomatis (K-06):**
+| Function | Dibuat oleh | Dipakai oleh | Untuk |
+|---|---|---|---|
+| fn_ready_to_ship(@style_id) | C | B | Batas jumlah kiriman (Packing selesai dikurangi yang sudah dikirim) |
+| fn_style_completion_pct(@style_id) | C | B | Persen selesai di dashboard |
+| fn_time_elapsed_pct(@style_id) | C | B | Persen waktu terpakai di dashboard |
+| fn_reject_pct(@style_id) | C | B | Persen tidak lolos di dashboard |
+| fn_next_doc_no(@prefix, @at) | A | B (SJ), C (SPK) | Nomor surat jalan dan nomor SPK |
+| sp_create_notification | A | B, C | Membuat notifikasi (Bagian 11) |
 
-| Kolom | Diisi dengan |
-|---|---|
-| `orders.factory_id` | Pabrik karyawan yang login |
-| `orders.level_code` | `DOMESTIK` (default), kecuali Marketing memilih internasional |
-| `shipments.origin_warehouse_id` | Gudang barang jadi milik pabrik order |
-| Kolom `*_by` yang menunjuk `employees` | `employee_id` dari akun yang login |
+Nama dan parameter function di tabel ini tidak boleh diubah tanpa persetujuan anggota yang memakainya.
 
-Singkatan: PK, FK, UQ (unique), CK (check), DF (default). **(RSI)** menandai kolom yang dipakai halaman RSI.
+---
 
-### 4.1 Milik A — `01-org.sql` (schema garment)
+## 4. Tabel dan kolom (TSD Bagian 4.3)
 
-**factories**
+Konvensi:
 
-| Kolom | Tipe | Keterangan |
-|---|---|---|
-| id | UNIQUEIDENTIFIER | PK |
-| factory_name | NVARCHAR(100) | |
-| address | NVARCHAR(200) | |
-| city | NVARCHAR(50) | |
-| province | NVARCHAR(50) | |
-| phone | VARCHAR(20) | |
-| email | VARCHAR(100) | NULL |
-| bonded_zone_status | BIT | DF 0; status kawasan berikat |
-| operating_status | VARCHAR(10) | CK IN (AKTIF, NONAKTIF) |
-| created_at | DATETIME2(0) | |
+- Nama tabel dan kolom memakai `snake_case` berbahasa Inggris. Nama tabel berbentuk jamak, kecuali `spk`.
+- ID memakai `UNIQUEIDENTIFIER DEFAULT NEWSEQUENTIALID()`. Pengecualian: `activity_logs` dan `order_status_history` memakai `BIGINT IDENTITY`. `roles` dan `product_types` memakai kode sebagai primary key.
+- Teks memakai `NVARCHAR`. Kode tetap memakai `VARCHAR`/`CHAR`.
+- Nilai status disimpan sebagai `VARCHAR` dengan `CHECK` constraint (lihat Bagian 5).
+- Waktu memakai `DATETIME2(0)` dengan default `SYSDATETIME()`. Tanggal saja memakai `DATE`.
 
-**countries** — `country_code CHAR(2)` PK (ISO 3166, mis. ID, US), `country_name NVARCHAR(60)`.
+Singkatan di kolom Keterangan: PK = primary key, FK = foreign key, UQ = unique, CK = check, DF = default.
 
-**production_stages** (dipakai C dan B)
-
-| Kolom | Tipe | Keterangan |
-|---|---|---|
-| stage_code | VARCHAR(10) | PK; CK IN (CUTTING, SEWING, TRIMMING, FINISHING, IRONING, PACKING) |
-| stage_name | NVARCHAR(30) | |
-| sequence | TINYINT | UQ; CK 1–6 |
-
-**divisions** — `id` PK, `factory_id` FK → factories, `division_name NVARCHAR(60)`, `head_employee_id` NULL FK → employees (UQ filtered `WHERE head_employee_id IS NOT NULL`, relasi 1:1).
-
-**positions** — `id` PK, `position_name NVARCHAR(60)`, `position_level TINYINT`, `base_salary_min`, `base_salary_max DECIMAL(16,2)` CK min ≤ max.
-
-**shifts** — `id` PK, `shift_name NVARCHAR(30)`, `start_time TIME(0)`, `end_time TIME(0)`.
-
-**employees**
-
-| Kolom | Tipe | Keterangan |
-|---|---|---|
-| id | UNIQUEIDENTIFIER | PK |
-| nik | CHAR(16) | UQ; CK 16 digit |
-| full_name | NVARCHAR(100) | (RSI) nama tampilan akun diambil dari sini |
-| birth_date | DATE | |
-| gender | CHAR(1) | CK IN (L, P) |
-| employee_type | VARCHAR(12) | CK IN (TETAP, KONTRAK, HARIAN, MAGANG, OUTSOURCING) |
-| address | NVARCHAR(200) | |
-| phone | VARCHAR(20) | |
-| email | VARCHAR(100) | NULL |
-| npwp | VARCHAR(20) | NULL |
-| bpjs_health_no, bpjs_employment_no | VARCHAR(20) | NULL |
-| bank_name | NVARCHAR(50) | NULL |
-| account_no | VARCHAR(30) | NULL |
-| factory_id | UNIQUEIDENTIFIER | FK → factories |
-| division_id | UNIQUEIDENTIFIER | FK → divisions |
-| position_id | UNIQUEIDENTIFIER | FK → positions |
-| shift_id | UNIQUEIDENTIFIER | NULL; FK → shifts |
-| is_active | BIT | DF 1 |
-| join_date | DATE | |
-| created_at, updated_at | DATETIME2(0) | |
-
-**employment_contracts** (lemah) — PK (`employee_id`, `contract_seq TINYINT`); `contract_type VARCHAR(10)` CK IN (PKWT, PKWTT, HARIAN, MAGANG); `contract_document_no VARCHAR(30)`; `base_salary DECIMAL(16,2)`; `start_date DATE`; `finish_date DATE NULL`; `status VARCHAR(10)` CK IN (AKTIF, SELESAI, DIPUTUS).
-
-**skills** — `id` PK, `skill_category NVARCHAR(50)`, `skill_name NVARCHAR(80)`.
-
-**employee_skills** (M:N `masters`) — PK (`employee_id`, `skill_id`); `skill_level VARCHAR(10)` CK IN (DASAR, MENENGAH, AHLI); `certified_date DATE NULL`.
-
-**interns** (subclass dari employees)
-
-| Kolom | Tipe | Keterangan |
-|---|---|---|
-| employee_id | UNIQUEIDENTIFIER | PK; FK → employees |
-| mentor_id | UNIQUEIDENTIFIER | FK → employees; CK mentor_id ≠ employee_id |
-| institution | NVARCHAR(100) | |
-| major | NVARCHAR(80) | |
-| program_type | VARCHAR(10) | CK IN (PKL, KAMPUS, MANDIRI) |
-| allowance | DECIMAL(16,2) | |
-| start_date, finish_date | DATE | CK finish ≥ start |
-| final_score | DECIMAL(5,2) | NULL; CK 0–100 |
-
-Aturan "harus `employee_type = MAGANG`" dan "pembimbing harus karyawan aktif" dijaga trigger `trg_interns_check` (A).
-
-**attendances** (lemah) — PK (`employee_id`, `work_date DATE`); `clock_in`, `clock_out TIME(0) NULL`; `overtime_hours DECIMAL(4,1)` DF 0; `attendance_status VARCHAR(10)` CK IN (HADIR, IZIN, SAKIT, ALPA, CUTI).
-
-**warehouses** — `id` PK, `factory_id` FK, `head_employee_id` FK → employees, `warehouse_name NVARCHAR(60)`, `warehouse_type VARCHAR(12)` CK IN (BAHAN, BARANG_JADI, CAMPURAN), `address NVARCHAR(200)`, `capacity_m3 DECIMAL(10,2)`.
-
-**rack_locations** — `id` PK, `warehouse_id` FK, `rack_code VARCHAR(20)`, `capacity INT`; UQ (`warehouse_id`, `rack_code`).
-
-### 4.2 Milik A — `02-app.sql` (schema app)
-
-Kolom tabel `app` sama dengan v1 kecuali yang ditandai **berubah**. Semua kolom ditulis lengkap di sini supaya tidak perlu membuka v1. Kolom yang tidak tercantum **jangan ditambahkan**; nama dan nilainya dipakai langsung oleh kode login, log, dan notifikasi.
+### 4.1 Milik A (`01-core.sql`)
 
 **roles**
 
 | Kolom | Tipe | Keterangan |
 |---|---|---|
-| role_code | VARCHAR(12) | PK; CK IN (SUPERADMIN, ADMIN, PIMPINAN, MARKETING, PPIC, SPV, QC) (Bagian 7) |
-| role_name | NVARCHAR(50) | Nama tampilan |
+| role_code | VARCHAR(10) | PK; nilai di Bagian 6 |
+| role_name | NVARCHAR(50) | Nama tampilan, mis. "Administrator Sistem" |
 | access_tier | VARCHAR(10) | CK IN (SUPERADMIN, ADMIN, USER) |
 
 **users**
@@ -202,10 +100,10 @@ Kolom tabel `app` sama dengan v1 kecuali yang ditandai **berubah**. Semua kolom 
 | Kolom | Tipe | Keterangan |
 |---|---|---|
 | id | UNIQUEIDENTIFIER | PK |
-| employee_id | UNIQUEIDENTIFIER | **berubah**: UQ; FK → garment.employees (`has_account`, 1:1) |
+| full_name | NVARCHAR(100) | |
 | username | VARCHAR(50) | UQ; CK panjang 4–50 |
-| password_hash | VARCHAR(100) | bcrypt, tidak pernah teks biasa |
-| role_code | VARCHAR(12) | FK → roles |
+| password_hash | VARCHAR(100) | Hash bcrypt, tidak pernah teks biasa |
+| role_code | VARCHAR(10) | FK → roles |
 | is_active | BIT | DF 1 |
 | is_locked | BIT | DF 0; jadi 1 setelah 5 kali gagal login |
 | failed_login_count | TINYINT | DF 0 |
@@ -213,23 +111,19 @@ Kolom tabel `app` sama dengan v1 kecuali yang ditandai **berubah**. Semua kolom 
 | last_login_at | DATETIME2(0) | NULL |
 | created_at, updated_at | DATETIME2(0) | DF SYSDATETIME() |
 
-`full_name` **dihapus**; nama diambil dari `employees`.
-
 **sessions**
 
 | Kolom | Tipe | Keterangan |
 |---|---|---|
-| id | UNIQUEIDENTIFIER | PK; disimpan di JWT sebagai klaim `sid` (token sendiri tidak disimpan) |
+| id | UNIQUEIDENTIFIER | PK; disimpan di JWT sebagai klaim `sid` |
 | user_id | UNIQUEIDENTIFIER | FK → users |
 | device | NVARCHAR(150) | Ringkasan User-Agent, mis. "Android · Chrome" |
 | ip_address | VARCHAR(45) | |
 | login_at | DATETIME2(0) | DF SYSDATETIME() |
 | last_activity_at | DATETIME2(0) | Diperbarui setiap request; dasar timeout 30 menit |
-| status | VARCHAR(10) | DF 'AKTIF'; CK IN (AKTIF, BERAKHIR) |
-| end_reason | VARCHAR(20) | NULL; CK IN (LOGOUT, TIDAK_AKTIF, DIAKHIRI_ADMIN, RESET_PASSWORD, AKUN_NONAKTIF) |
+| status | VARCHAR(10) | DF 'AKTIF'; nilai di Bagian 5 |
+| end_reason | VARCHAR(20) | NULL; nilai di Bagian 5 |
 | ended_at | DATETIME2(0) | NULL |
-
-Index: (`user_id`, `status`) dan (`status`, `last_activity_at`).
 
 **activity_logs** (hanya ditambah, tidak pernah diubah atau dihapus)
 
@@ -237,16 +131,14 @@ Index: (`user_id`, `status`) dan (`status`, `last_activity_at`).
 |---|---|---|
 | id | BIGINT IDENTITY(1,1) | PK |
 | user_id | UNIQUEIDENTIFIER | NULL; FK → users (NULL bila username tidak dikenal) |
-| username | VARCHAR(50) | Username saat kejadian (juga untuk login gagal) |
-| action_type | VARCHAR(20) | CK IN (LOGIN_BERHASIL, LOGIN_GAGAL, LOGOUT, SESI_BERAKHIR, SESI_DIAKHIRI, AKUN_TERKUNCI, BUKA_KUNCI, RESET_PASSWORD, GANTI_PASSWORD, AKSES_DITOLAK, TAMBAH, UBAH, SETUJU, TOLAK, TARIK, BATAL) |
-| resource_type | VARCHAR(40) | NULL; nama tabel, ditulis dengan schema, mis. `garment.orders` |
-| resource_id | VARCHAR(36) | NULL; id baris |
+| username | VARCHAR(50) | Username saat kejadian |
+| action_type | VARCHAR(20) | Nilai di Bagian 10 |
+| resource_type | VARCHAR(30) | NULL; nama tabel yang terpengaruh |
+| resource_id | VARCHAR(36) | NULL; id baris yang terpengaruh |
 | old_values, new_values | NVARCHAR(MAX) | NULL; JSON, CK ISJSON = 1 |
 | device | NVARCHAR(150) | NULL |
 | ip_address | VARCHAR(45) | |
 | created_at | DATETIME2(0) | DF SYSDATETIME() |
-
-Index: (`user_id`, `created_at`), (`created_at`), (`action_type`).
 
 **password_reset_requests**
 
@@ -255,12 +147,10 @@ Index: (`user_id`, `created_at`), (`created_at`), (`action_type`).
 | id | UNIQUEIDENTIFIER | PK |
 | user_id | UNIQUEIDENTIFIER | FK → users |
 | note | NVARCHAR(200) | NULL |
-| status | VARCHAR(10) | DF 'MENUNGGU'; CK IN (MENUNGGU, SELESAI) |
+| status | VARCHAR(10) | DF 'MENUNGGU'; nilai di Bagian 5 |
 | handled_by | UNIQUEIDENTIFIER | NULL; FK → users |
 | requested_at | DATETIME2(0) | DF SYSDATETIME() |
 | handled_at | DATETIME2(0) | NULL |
-
-Unique filtered: satu permintaan MENUNGGU per akun (`UNIQUE (user_id) WHERE status = 'MENUNGGU'`, RB-61).
 
 **notifications**
 
@@ -268,237 +158,165 @@ Unique filtered: satu permintaan MENUNGGU per akun (`UNIQUE (user_id) WHERE stat
 |---|---|---|
 | id | UNIQUEIDENTIFIER | PK |
 | recipient_id | UNIQUEIDENTIFIER | FK → users |
-| event_code | CHAR(4) | CK IN ('N-01' … 'N-11'); N-12 dan N-13 dihapus |
-| message | NVARCHAR(300) | Isi mengikuti contoh SRS Tabel 3.2a |
+| event_code | CHAR(4) | 'N-01' sampai 'N-13' (Bagian 11) |
+| message | NVARCHAR(300) | |
 | link | VARCHAR(200) | NULL; route frontend |
-| dedup_key | VARCHAR(80) | NULL; mencegah notifikasi ganda (dipakai N-07/N-08) |
+| dedup_key | VARCHAR(80) | NULL; mencegah notifikasi ganda |
 | is_read | BIT | DF 0 |
 | created_at | DATETIME2(0) | DF SYSDATETIME() |
 
-Index: (`recipient_id`, `is_read`, `created_at`); unique filtered (`recipient_id`, `dedup_key`) `WHERE dedup_key IS NOT NULL`.
-
-### 4.3 Milik B — `03-order.sql` (schema garment)
+### 4.2 Milik B (`02-order.sql`)
 
 **buyers**
 
 | Kolom | Tipe | Keterangan |
 |---|---|---|
 | id | UNIQUEIDENTIFIER | PK |
-| buyer_code | CHAR(3) | UQ; CK 3 huruf kapital (RSI) |
-| buyer_name | NVARCHAR(100) | (RSI) |
-| buyer_type | VARCHAR(5) | CK IN (LOKAL, ASING) |
-| country_code | CHAR(2) | FK → countries |
-| contact_name | NVARCHAR(100) | (RSI, dulu `contact`) |
-| phone | VARCHAR(20) | (RSI) |
-| email | VARCHAR(100) | NULL |
-| address | NVARCHAR(200) | |
-| city | NVARCHAR(50) | |
-| tax_id_no | VARCHAR(30) | NULL; NPWP atau Tax ID |
-| default_currency | CHAR(3) | DF 'IDR' |
-| payment_term_days | SMALLINT | DF 30 |
-| credit_limit | DECIMAL(16,2) | NULL |
-| created_at, updated_at | DATETIME2(0) | |
+| buyer_name | NVARCHAR(100) | |
+| buyer_code | CHAR(3) | UQ; CK 3 huruf kapital, mis. BRT |
+| contact | NVARCHAR(100) | |
+| created_at, updated_at | DATETIME2(0) | DF SYSDATETIME() |
 
-**order_levels**
+**product_types**
 
 | Kolom | Tipe | Keterangan |
 |---|---|---|
-| level_code | VARCHAR(13) | PK; CK IN (DOMESTIK, INTERNASIONAL) |
-| level_name | NVARCHAR(30) | |
-| standard_lead_time_days | SMALLINT | |
-| minimum_order_qty | INT | |
-| vat_treatment | VARCHAR(5) | CK IN (PPN, PPN_0) |
-| min_down_payment_pct | DECIMAL(5,2) | CK 0–100 |
-| requires_export_document | BIT | |
-
-**order_level_payment_methods** (multivalued) — PK (`level_code`, `payment_method VARCHAR(8)`); CK IN (TRANSFER, TT, LC, GIRO, TUNAI). Daftar ini **sama persis** dengan `payments.payment_method`, supaya `sp_record_payment` bisa mengecek metode bayar terhadap level order.
-
-**product_types** — sama dengan v1 (`type_code CHAR(2)` PK: CL, KM, KS, PL, DR, JK, SR).
+| type_code | CHAR(2) | PK: CL, KM, KS, PL, DR, JK, SR |
+| type_name | NVARCHAR(30) | |
 
 **items**
 
 | Kolom | Tipe | Keterangan |
 |---|---|---|
 | id | UNIQUEIDENTIFIER | PK |
-| item_code | VARCHAR(12) | UQ; format BBB-JJ-NNNN (RSI). Barang tanpa buyer memakai BBB = `GEN` |
-| buyer_id | UNIQUEIDENTIFIER | NULL; FK → buyers (`owns_design`, parsial) |
+| item_code | VARCHAR(12) | UQ; format BBB-JJ-NNNN |
+| buyer_id | UNIQUEIDENTIFIER | FK → buyers |
 | type_code | CHAR(2) | FK → product_types |
-| item_name | NVARCHAR(100) | |
-| buyer_style_name | NVARCHAR(100) | NULL (RSI) |
-| buyer_style_code | VARCHAR(30) | NULL; **bukan** key (dua buyer bisa memakai kode yang sama) |
-| design_notes | NVARCHAR(500) | NULL |
-| tech_pack_file | VARCHAR(200) | NULL |
-| base_price | DECIMAL(16,2) | NULL |
-| status | VARCHAR(8) | CK IN (AKTIF, NONAKTIF) |
-| created_at | DATETIME2(0) | |
-
-**item_variants** — `id` PK; `item_id` FK; `sku VARCHAR(30)` UQ (format `{item_code}-{size}-{NN}`); `size VARCHAR(10)`; `color NVARCHAR(50)`; `weight_per_pcs_gram DECIMAL(8,2) NULL`; UQ (`item_id`, `size`, `color`).
+| buyer_style_name | NVARCHAR(100) | |
+| created_at | DATETIME2(0) | DF SYSDATETIME() |
 
 **orders**
 
 | Kolom | Tipe | Keterangan |
 |---|---|---|
 | id | UNIQUEIDENTIFIER | PK |
-| order_code | CHAR(12) | UQ; ORD-TTBB-NNN (RSI) |
-| buyer_id | UNIQUEIDENTIFIER | FK → buyers (RSI) |
-| factory_id | UNIQUEIDENTIFIER | FK → factories; diisi otomatis |
-| level_code | VARCHAR(13) | FK → order_levels; DF 'DOMESTIK' (RSI) |
-| handled_by | UNIQUEIDENTIFIER | FK → employees (dulu `created_by`) |
-| buyer_po_no | VARCHAR(30) | NULL |
-| order_date | DATE | DF hari ini (RSI) |
-| deadline | DATE | CK ≥ order_date (RSI) |
-| finish_date | DATE | NULL |
-| scheme | VARCHAR(3) | CK IN (CMT, FOB) (RSI). Ini skema **produksi**, beda dengan Incoterm |
-| reject_limit_pct | DECIMAL(5,2) | CK 0–100 (RSI) |
-| late_penalty | NVARCHAR(500) | (RSI) |
-| currency | CHAR(3) | DF 'IDR' (RSI, isian internasional) |
-| exchange_rate | DECIMAL(12,4) | DF 1; CK > 0 |
-| incoterm | VARCHAR(3) | NULL; CK IN (EXW, FCA, FOB, CFR, CIF, DAP, DDP) |
-| destination_country | CHAR(2) | NULL; FK → countries |
-| destination_port | NVARCHAR(60) | NULL |
-| notes | NVARCHAR(500) | NULL |
-| status | VARCHAR(20) | DF 'MENUNGGU_PERSETUJUAN' (RSI) |
-| is_at_risk, is_over_reject | BIT | DF 0 (RSI) |
-| created_at | DATETIME2(0) | |
+| order_code | CHAR(12) | UQ; format ORD-TTBB-NNN |
+| buyer_id | UNIQUEIDENTIFIER | FK → buyers |
+| order_date | DATE | DF hari ini |
+| deadline | DATE | CK deadline >= order_date |
+| scheme | VARCHAR(3) | CK IN (CMT, FOB) |
+| reject_limit_pct | DECIMAL(5,2) | CK 0–100 |
+| late_penalty | NVARCHAR(500) | |
+| status | VARCHAR(20) | DF 'MENUNGGU_PERSETUJUAN'; nilai di Bagian 5 |
+| is_at_risk | BIT | DF 0 |
+| is_over_reject | BIT | DF 0 |
+| created_by | UNIQUEIDENTIFIER | FK → users |
+| created_at | DATETIME2(0) | DF SYSDATETIME() |
 
-Aturan "order INTERNASIONAL wajib mengisi mata uang, kurs, Incoterm, dan negara serta pelabuhan tujuan" dijaga `sp_create_order`, karena melibatkan tabel `order_levels`.
-
-**order_status_history** — `id BIGINT IDENTITY(1,1)` PK; `order_id` FK → orders; `status VARCHAR(20)` (status baru); `changed_by` FK → **employees**; `reason NVARCHAR(500) NULL`, CK wajib diisi bila status DITOLAK, DITARIK, atau DIBATALKAN; `changed_at DATETIME2(0)` DF SYSDATETIME(). Index (`order_id`, `changed_at`).
-
-**order_details** (per style + warna)
+**order_status_history**
 
 | Kolom | Tipe | Keterangan |
 |---|---|---|
-| id | UNIQUEIDENTIFIER | PK (RSI, pengganti `order_styles.id`) |
+| id | BIGINT IDENTITY(1,1) | PK |
+| order_id | UNIQUEIDENTIFIER | FK → orders |
+| status | VARCHAR(20) | Status baru |
+| changed_by | UNIQUEIDENTIFIER | FK → users |
+| reason | NVARCHAR(500) | NULL; wajib bila status DITOLAK, DITARIK, atau DIBATALKAN |
+| changed_at | DATETIME2(0) | DF SYSDATETIME() |
+
+**order_styles**
+
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| id | UNIQUEIDENTIFIER | PK |
 | order_id | UNIQUEIDENTIFIER | FK → orders |
 | item_id | UNIQUEIDENTIFIER | FK → items |
 | color | NVARCHAR(50) | |
-| unit_price | DECIMAL(16,2) | CK > 0 (RSI, dulu `price_per_pcs`) |
-| discount_pct | DECIMAL(5,2) | DF 0; CK 0–100 (fitur tambahan RSI) |
-| is_at_risk, is_over_reject | BIT | DF 0 |
+| price_per_pcs | DECIMAL(14,2) | CK > 0 |
+| is_at_risk | BIT | DF 0 |
+| is_over_reject | BIT | DF 0 |
 
-UQ (`order_id`, `item_id`, `color`).
-
-**order_detail_sizes** (lemah)
+**order_style_sizes**
 
 | Kolom | Tipe | Keterangan |
 |---|---|---|
-| order_detail_id | UNIQUEIDENTIFIER | PK 1; FK → order_details |
-| size | VARCHAR(10) | PK 2 |
-| variant_id | UNIQUEIDENTIFIER | NULL; FK → item_variants (dipakai stok barang jadi) |
+| style_id | UNIQUEIDENTIFIER | PK bagian 1; FK → order_styles |
+| size | VARCHAR(10) | PK bagian 2; mis. S, M, L, XL, 28 |
 | qty | INT | CK > 0 |
-| cancelled_qty | INT | DF 0; CK 0 ≤ cancelled_qty ≤ qty |
-
-**cancellation_policies**
-
-| Kolom | Tipe | Keterangan |
-|---|---|---|
-| id | UNIQUEIDENTIFIER | PK |
-| level_code | VARCHAR(13) | FK → order_levels |
-| stage_code | VARCHAR(10) | NULL = sebelum produksi; FK → production_stages |
-| request_deadline_days | SMALLINT | |
-| penalty_pct | DECIMAL(5,2) | CK 0–100 |
-| down_payment_refund_pct | DECIMAL(5,2) | CK 0–100 |
-| material_owned_by_buyer | BIT | |
-| valid_from | DATE | |
-| valid_until | DATE | NULL |
-
-**order_cancellations**
-
-| Kolom | Tipe | Keterangan |
-|---|---|---|
-| id | UNIQUEIDENTIFIER | PK |
-| order_id | UNIQUEIDENTIFIER | FK → orders |
-| order_detail_id | UNIQUEIDENTIFIER | NULL = batal seluruh order. Di RSI selalu NULL; pembatalan sebagian hanya di SMBD |
-| policy_id | UNIQUEIDENTIFIER | FK → cancellation_policies |
-| stage_code_at_request | VARCHAR(10) | NULL; FK → production_stages |
-| requested_by_party | VARCHAR(10) | CK IN (BUYER, PERUSAHAAN) |
-| reason | NVARCHAR(500) | |
-| cancelled_qty | INT | NULL |
-| penalty_amount, refund_amount | DECIMAL(16,2) | dihitung `fn_cancellation_penalty` |
-| status | VARCHAR(10) | CK IN (MENUNGGU, DISETUJUI, DITOLAK) |
-| requested_by | UNIQUEIDENTIFIER | FK → employees |
-| approved_by | UNIQUEIDENTIFIER | NULL; FK → employees |
-| requested_date | DATE | |
-| approved_date | DATE | NULL |
-
-Di RSI, Pimpinan membatalkan langsung, jadi barisnya tercipta dengan status DISETUJUI.
-
-**expeditions** — `id` PK; `expedition_name NVARCHAR(100)`; `partner_type VARCHAR(10)` CK IN (EKSPEDISI, FORWARDER, KURIR); `coverage VARCHAR(13)` CK IN (DOMESTIK, INTERNASIONAL, KEDUANYA); `contact_name`, `phone`, `email`; `is_active BIT`.
-
-**expedition_transport_modes** (multivalued) — PK (`expedition_id`, `transport_mode VARCHAR(6)`); CK IN (DARAT, LAUT, UDARA).
-
-**vehicles** — `id` PK; `factory_id` FK; `plate_no VARCHAR(12)` UQ; `vehicle_type NVARCHAR(30)`; `capacity_kg`, `capacity_m3 DECIMAL(10,2)`; `status VARCHAR(9)` CK IN (TERSEDIA, DIPAKAI, PERBAIKAN).
-
-**routes** — `id` PK; `origin_warehouse_id` FK → warehouses; `expedition_id` FK; `destination_city NVARCHAR(60)`; `destination_country` FK → countries; `distance_km DECIMAL(8,1)`; `estimated_days SMALLINT`; `rate_per_kg`, `rate_per_m3`, `minimum_rate DECIMAL(16,2)`; `valid_until DATE NULL`.
 
 **shipments**
 
 | Kolom | Tipe | Keterangan |
 |---|---|---|
 | id | UNIQUEIDENTIFIER | PK |
-| delivery_note_no | CHAR(11) | UQ; SJ-TTBB-NNN (RSI) |
-| order_id | UNIQUEIDENTIFIER | FK → orders; **satu surat jalan untuk satu order** (RSI, K-12) |
-| origin_warehouse_id | UNIQUEIDENTIFIER | FK → warehouses; diisi otomatis |
-| expedition_id | UNIQUEIDENTIFIER | FK → expeditions; **wajib**, dipilih PPIC (RSI) |
-| route_id | UNIQUEIDENTIFIER | NULL; FK → routes. Bila diisi, ekspedisi rute harus sama dengan `expedition_id` |
-| vehicle_id | UNIQUEIDENTIFIER | NULL; FK → vehicles |
-| recorded_by | UNIQUEIDENTIFIER | FK → employees (RSI) |
-| destination_address | NVARCHAR(200) | |
-| ship_date | DATE | (RSI) |
-| estimated_arrival, arrival_date | DATE | NULL |
-| package_count | INT | NULL |
-| total_weight_kg, volume_m3 | DECIMAL(10,2) | NULL |
-| shipping_cost | DECIMAL(16,2) | NULL |
-| status | VARCHAR(16) | CK IN (DIKIRIM, DALAM_PERJALANAN, TIBA) |
-| created_at | DATETIME2(0) | |
+| delivery_note_no | CHAR(11) | UQ; format SJ-TTBB-NNN |
+| order_id | UNIQUEIDENTIFIER | FK → orders |
+| ship_date | DATE | |
+| expedition | NVARCHAR(100) | |
+| recorded_by | UNIQUEIDENTIFIER | FK → users |
+| created_at | DATETIME2(0) | DF SYSDATETIME() |
 
-Satu surat jalan hanya untuk satu order, tetapi boleh memuat banyak barang (beberapa style, warna, dan ukuran dari order itu). Satu order boleh dikirim bertahap dengan beberapa surat jalan (K-12).
-
-**shipment_items** (lemah)
+**shipment_items**
 
 | Kolom | Tipe | Keterangan |
 |---|---|---|
-| shipment_id | UNIQUEIDENTIFIER | PK 1; FK → shipments |
-| line_no | SMALLINT | PK 2 |
-| order_detail_id, size | | FK gabungan → order_detail_sizes (RSI) |
-| qty | INT | CK > 0 (RSI) |
-| carton_no | VARCHAR(20) | NULL |
+| id | UNIQUEIDENTIFIER | PK |
+| shipment_id | UNIQUEIDENTIFIER | FK → shipments |
+| style_id | UNIQUEIDENTIFIER | FK → order_styles |
+| size | VARCHAR(10) | UQ (shipment_id, style_id, size) |
+| qty | INT | CK > 0 |
 
-UQ (`shipment_id`, `order_detail_id`, `size`). Semua item wajib milik order yang sama dengan `shipments.order_id`; dicek `sp_record_shipment` dan dijaga trigger `trg_shipment_items_same_order` (B).
+### 4.3 Milik C (`03-produksi.sql`)
 
-**export_documents** — `id` PK; `shipment_id` UQ FK; `peb_no VARCHAR(30)`, `peb_date DATE`; `commercial_invoice_no`, `packing_list_no`, `bl_awb_no`, `coo_no NULL`, `vessel_flight_no VARCHAR(30)`; `container_no NULL`, `container_type VARCHAR(10) NULL`; `etd`, `eta DATE`; `loading_port`, `destination_port NVARCHAR(60)`; `fob_value DECIMAL(16,2)`.
+**suppliers**
 
-**shipment_trackings** (lemah) — PK (`shipment_id`, `updated_at DATETIME2(0)`); `location NVARCHAR(100)`; `position_status VARCHAR(20)`; `description NVARCHAR(300) NULL`.
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| id | UNIQUEIDENTIFIER | PK |
+| supplier_name | NVARCHAR(100) | |
+| contact | NVARCHAR(100) | |
+| payment_term | VARCHAR(10) | Nilai di Bagian 5 |
+| created_at | DATETIME2(0) | DF SYSDATETIME() |
 
-### 4.4 Milik C — `04-produksi.sql` (schema garment)
+**materials**
 
-**production_lines** — `id` PK; `factory_id` FK; `supervisor_id` FK → employees; `line_name NVARCHAR(50)`; `capacity_pcs_per_day INT`.
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| id | UNIQUEIDENTIFIER | PK |
+| style_id | UNIQUEIDENTIFIER | FK → order_styles |
+| material_name | NVARCHAR(100) | |
+| qty | DECIMAL(12,2) | CK > 0 |
+| unit | NVARCHAR(20) | |
+| source | VARCHAR(8) | CK IN (BUYER, SUPPLIER) |
+| supplier_id | UNIQUEIDENTIFIER | NULL; FK → suppliers; wajib bila source = SUPPLIER |
+| material_price | DECIMAL(14,2) | NULL; CK > 0; wajib bila source = SUPPLIER |
+| received_date | DATE | |
+| checked_by | UNIQUEIDENTIFIER | FK → users (PPIC yang mencentang pernyataan kelayakan) |
+| checked_at | DATETIME2(0) | DF SYSDATETIME() |
+| updated_at | DATETIME2(0) | DF SYSDATETIME() |
 
 **spk**
 
 | Kolom | Tipe | Keterangan |
 |---|---|---|
 | id | UNIQUEIDENTIFIER | PK |
-| spk_no | CHAR(12) | UQ; SPK-TTBB-NNN (RSI) |
-| order_detail_id | UNIQUEIDENTIFIER | FK → order_details (per style, K-03) |
-| line_id | UNIQUEIDENTIFIER | FK → production_lines; **wajib**, dipilih PPIC (fitur tambahan) |
-| created_by | UNIQUEIDENTIFIER | FK → employees (PPIC) |
-| materials_complete_by | UNIQUEIDENTIFIER | FK → employees (RSI) |
-| decided_by | UNIQUEIDENTIFIER | NULL; FK → employees (Pimpinan) (RSI) |
-| start_date | DATE | NULL |
-| target_date | DATE | (RSI) |
-| finish_date | DATE | NULL |
-| status | VARCHAR(20) | DF 'MENUNGGU_PERSETUJUAN' (RSI) |
-| approved_at | DATETIME2(0) | NULL; CK `status IN ('MENUNGGU_PERSETUJUAN','DITOLAK') OR approved_at IS NOT NULL`, jadi tetap berlaku kalau nanti ada status sesudah DISETUJUI |
-| reject_reason | NVARCHAR(500) | NULL; CK wajib bila DITOLAK |
-| created_at | DATETIME2(0) | |
+| spk_no | CHAR(12) | UQ; format SPK-TTBB-NNN |
+| style_id | UNIQUEIDENTIFIER | FK → order_styles; satu SPK berlaku per style |
+| target_date | DATE | |
+| status | VARCHAR(20) | DF 'MENUNGGU_PERSETUJUAN'; nilai di Bagian 5 |
+| materials_complete_by | UNIQUEIDENTIFIER | FK → users (PPIC yang mencentang pernyataan bahan lengkap) |
+| decided_by | UNIQUEIDENTIFIER | NULL; FK → users (Pimpinan) |
+| approved_at | DATETIME2(0) | NULL |
+| reject_reason | NVARCHAR(500) | NULL; wajib bila status DITOLAK |
+| created_at | DATETIME2(0) | DF SYSDATETIME() |
 
-Unique filtered: satu SPK aktif per `order_detail_id` (`WHERE status IN ('MENUNGGU_PERSETUJUAN','DISETUJUI')`). `target_qty` di skema bersifat derived (jumlah `spk_sizes`).
+**spk_sizes**
 
-Status SPK tetap tiga (MENUNGGU_PERSETUJUAN, DISETUJUI, DITOLAK), sama dengan v1. Saat order dibatalkan, status SPK **tidak** diubah. Yang mencegah kelanjutan adalah status order (RB-23). Karena itu `sp_decide_spk` wajib menolak keputusan atas SPK yang ordernya DIBATALKAN, DITOLAK, atau DITARIK. Kalau nanti status SPK ditambah (mis. DIBATALKAN), CK `approved_at` di atas harus ikut diperbarui.
-
-**spk_sizes** (lemah) — PK (`spk_id`, `size`); `qty INT` CK > 0. Sama dengan v1.
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| spk_id | UNIQUEIDENTIFIER | PK bagian 1; FK → spk |
+| size | VARCHAR(10) | PK bagian 2 |
+| qty | INT | CK > 0 |
 
 **production_progress**
 
@@ -506,434 +324,579 @@ Status SPK tetap tiga (MENUNGGU_PERSETUJUAN, DISETUJUI, DITOLAK), sama dengan v1
 |---|---|---|
 | id | UNIQUEIDENTIFIER | PK |
 | spk_id | UNIQUEIDENTIFIER | FK → spk |
-| stage_code | VARCHAR(10) | FK → production_stages |
-| work_date | DATE | |
-| qty_done | INT | CK ≥ 0. **Satu-satunya angka yang diisi SPV** (K-09) |
-| variance_note | NVARCHAR(300) | NULL; wajib bila kumulatif Cutting ≠ jumlah SPK |
-| recorded_by | UNIQUEIDENTIFIER | FK → employees (SPV) |
-| created_at, updated_at | DATETIME2(0) | |
-
-UQ (`spk_id`, `stage_code`, `work_date`). Di skema konseptual, `qty_in`, `qty_reject`, dan `stage_status` dihapus atau dijadikan derived (lihat `v_style_progress`).
-
-**suppliers**
-
-| Kolom | Tipe | Keterangan |
-|---|---|---|
-| id | UNIQUEIDENTIFIER | PK |
-| supplier_name | NVARCHAR(100) | (RSI) |
-| supplier_type | VARCHAR(6) | CK IN (LOKAL, IMPOR) |
-| country_code | CHAR(2) | FK → countries |
-| contact_name | NVARCHAR(100) | (RSI, dulu `contact`) |
-| phone | VARCHAR(20) | (RSI) |
-| email | VARCHAR(100) | NULL |
-| address | NVARCHAR(200) | |
-| city | NVARCHAR(50) | |
-| currency | CHAR(3) | DF 'IDR' |
-| tax_id_no | VARCHAR(30) | NULL |
-| rating | DECIMAL(2,1) | NULL; CK 1–5 |
-| payment_term | VARCHAR(10) | CK IN (LUNAS_AWAL, DP, KREDIT) (RSI) |
-| payment_term_days | SMALLINT | DF 0 |
-| is_active | BIT | DF 1 |
-| created_at | DATETIME2(0) | |
-
-**material_categories** — `id` PK, `category_name NVARCHAR(50)`.
-
-**raw_materials** — `id` PK; `material_code VARCHAR(20)` UQ; `category_id` FK; `material_name NVARCHAR(100)`; `specification NVARCHAR(200) NULL`; `color NVARCHAR(50) NULL`; `unit NVARCHAR(20)`; `hs_code VARCHAR(12) NULL`; `minimum_stock DECIMAL(12,2)` DF 0.
-
-**bom** (M:N `bill_of_materials`) — PK (`item_id`, `material_id`); `qty_per_pcs DECIMAL(10,4)` CK > 0; `unit NVARCHAR(20)`; `waste_tolerance_pct DECIMAL(5,2)` DF 0.
-
-**supplier_materials** (ternary `supplies`, M:N:1) — PK (`supplier_id`, `material_id`); `origin_country` FK → countries (sisi "1"); `offer_price DECIMAL(16,2)`; `currency CHAR(3)`; `lead_time_days SMALLINT`; `minimum_order DECIMAL(12,2)`; `is_main_supplier BIT`.
-
-**order_materials** (RSI `materials`)
-
-| Kolom | Tipe | Keterangan |
-|---|---|---|
-| id | UNIQUEIDENTIFIER | PK |
-| order_detail_id | UNIQUEIDENTIFIER | FK → order_details (dulu `style_id`) |
-| material_id | UNIQUEIDENTIFIER | FK → raw_materials; **wajib** (dulu `material_name` teks) |
-| qty | DECIMAL(12,2) | CK > 0 |
-| unit | NVARCHAR(20) | |
-| source | VARCHAR(8) | CK IN (BUYER, SUPPLIER) |
-| supplier_id | UNIQUEIDENTIFIER | NULL; FK; wajib bila SUPPLIER |
-| material_price | DECIMAL(16,2) | NULL; wajib bila SUPPLIER |
-| received_date | DATE | |
-| checked_by | UNIQUEIDENTIFIER | FK → employees (PPIC) |
-| checked_at, updated_at | DATETIME2(0) | |
-
-**material_usages** — `id` PK; `spk_id` FK; `material_id` FK; `batch_no VARCHAR(30)`; `used_qty DECIMAL(12,2)` CK > 0; `usage_date DATE`; `recorded_by` FK → employees.
-
-**purchase_orders** — `id` PK; `po_no CHAR(11)` UQ (PO-TTBB-NNN); `supplier_id` FK; `factory_id` FK; `order_id` NULL FK; `created_by` FK → employees; `approved_by` NULL FK → employees; `po_date`, `required_date DATE`; `incoterm VARCHAR(3) NULL`; `currency CHAR(3)`; `exchange_rate DECIMAL(12,4)`; `status VARCHAR(17)` CK IN (DRAF, DISETUJUI, DITERIMA_SEBAGIAN, SELESAI, DIBATALKAN).
-
-**purchase_order_items** — `id` PK; `po_id` FK; `material_id` FK; `ordered_qty DECIMAL(12,2)`; `unit_price DECIMAL(16,2)`; UQ (`po_id`, `material_id`).
-
-**material_receipts** — `id` PK; `po_id` FK; `warehouse_id` FK; `received_by` FK → employees; `supplier_delivery_note_no VARCHAR(30)`; `arrival_date DATE`.
-
-**material_receipt_items** — `id` PK; `receipt_id` FK; `po_item_id` FK; `origin_country` FK → countries; `batch_no VARCHAR(30)`; `received_qty`, `rejected_qty DECIMAL(12,2)` (rejected DF 0).
-
-**import_documents** — `id` PK; `receipt_id` UQ FK; `forwarder_id` NULL FK → expeditions; `customs_document_type VARCHAR(4)` CK IN (BC20, BC23); `customs_document_no VARCHAR(30)`; `document_date DATE`; `bl_awb_no VARCHAR(30)`; `loading_port`, `discharge_port NVARCHAR(60)`; `cif_value`, `import_duty`, `import_vat`, `import_pph22 DECIMAL(16,2)`; `customs_status VARCHAR(7)` CK IN (PROSES, SELESAI).
-
-**qc_standards** — `id` PK; `type_code` NULL FK → product_types; `parameter_name NVARCHAR(100)`; `tolerance_value NVARCHAR(50)`; `sampling_reference VARCHAR(30)`.
-
-**defect_types** — `id` PK; `defect_name NVARCHAR(60)`; `level VARCHAR(6)` CK IN (MINOR, MAYOR, KRITIS).
+| stage | VARCHAR(10) | Nilai di Bagian 5 |
+| work_date | DATE | UQ (spk_id, stage, work_date) |
+| qty_done | INT | CK >= 0 |
+| variance_note | NVARCHAR(300) | NULL; wajib bila jumlah Cutting ≠ jumlah SPK |
+| recorded_by | UNIQUEIDENTIFIER | FK → users (Supervisor) |
+| created_at, updated_at | DATETIME2(0) | DF SYSDATETIME() |
 
 **qc_results**
 
 | Kolom | Tipe | Keterangan |
 |---|---|---|
 | id | UNIQUEIDENTIFIER | PK |
-| inspection_type | VARCHAR(8) | CK IN (INCOMING, INLINE, FINAL). RSI memakai INLINE |
-| spk_id | UNIQUEIDENTIFIER | NULL; FK → spk (RSI) |
-| stage_code | VARCHAR(10) | NULL; FK → production_stages; CK ≠ PACKING (RSI) |
-| receipt_item_id | UNIQUEIDENTIFIER | NULL; FK → material_receipt_items |
-| standard_id | UNIQUEIDENTIFIER | FK → qc_standards; **wajib** (fitur tambahan) |
-| inspected_by | UNIQUEIDENTIFIER | FK → employees (QC) |
-| check_date | DATE | (RSI) |
-| sample_qty | INT | NULL |
-| qty_passed | INT | CK ≥ 0 (RSI) |
-| final_result | VARCHAR(11) | NULL; CK IN (LOLOS, TIDAK_LOLOS) |
-| inspected_by_buyer | BIT | DF 0 |
-| created_at | DATETIME2(0) | |
+| spk_id | UNIQUEIDENTIFIER | FK → spk |
+| stage | VARCHAR(10) | Semua tahap kecuali PACKING |
+| check_date | DATE | |
+| qty_passed | INT | CK >= 0 |
+| recorded_by | UNIQUEIDENTIFIER | FK → users (QC) |
+| created_at | DATETIME2(0) | DF SYSDATETIME() |
 
-CK: INCOMING → `receipt_item_id` terisi dan `spk_id` kosong; selain itu → `spk_id` dan `stage_code` terisi. Atribut `defect_qty` dari skema dijadikan derived (jumlah `qc_defects.qty`).
+**signed_documents** (prioritas Terakhir; hanya ditambah)
 
-**qc_defects** — `id` PK; `qc_id` FK; `defect_type_id` FK; `qty INT` CK > 0; `action_taken NVARCHAR(200) NULL`; UQ (`qc_id`, `defect_type_id`).
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| id | UNIQUEIDENTIFIER | PK |
+| doc_type | VARCHAR(12) | CK IN (SPK, SURAT_JALAN) |
+| spk_id | UNIQUEIDENTIFIER | NULL; FK → spk; wajib bila doc_type = SPK |
+| shipment_id | UNIQUEIDENTIFIER | NULL; FK → shipments; wajib bila doc_type = SURAT_JALAN |
+| version | INT | CK >= 1; nomor urut per dokumen |
+| original_name | NVARCHAR(200) | Nama berkas asli |
+| stored_name | VARCHAR(45) | UQ; `{uuid}.{jpg|png|pdf}` |
+| mime_type | VARCHAR(30) | CK IN (image/jpeg, image/png, application/pdf) |
+| size_bytes | INT | CK 1–5242880 (5 MB) |
+| sha256 | CHAR(64) | |
+| uploaded_by | UNIQUEIDENTIFIER | FK → users |
+| uploaded_at | DATETIME2(0) | DF SYSDATETIME() |
 
-**material_stocks** — `id` PK; `location_id` FK → rack_locations; `material_id` FK; `batch_no VARCHAR(30)`; `available_qty`, `allocated_qty DECIMAL(12,2)` (CK allocated ≤ available); `updated_at`. UQ (`location_id`, `material_id`, `batch_no`). `free_qty` derived.
+Ditambah CHECK: tepat satu dari `spk_id` dan `shipment_id` terisi.
 
-**product_stocks** — `id` PK; `location_id` FK; `variant_id` FK → item_variants; `spk_id` NULL FK; `available_qty INT`; `goods_condition VARCHAR(5)` CK IN (BAIK, RUSAK); `updated_at`.
-
-**stock_movements** — `id` PK; `movement_type VARCHAR(11)` CK IN (MASUK, KELUAR, PINDAH, PENYESUAIAN); `from_location_id`, `to_location_id` NULL FK; `material_id` NULL FK; `variant_id` NULL FK; `batch_no NULL`; `qty DECIMAL(12,2)`; `reference_type VARCHAR(20)`; `reference_no VARCHAR(30)`; `moved_by` FK → employees; `movement_date DATETIME2(0)`. CK: tepat satu dari `material_id`/`variant_id` terisi.
-
-**stock_counts** — `id` PK; `location_id` FK; `material_id`, `variant_id` NULL (tepat satu terisi); `counted_by` FK → employees; `count_date DATE`; `system_stock`, `physical_stock DECIMAL(12,2)`. `difference` derived.
-
-**facilities** — `id` PK; `factory_id` NULL FK; `facility_name NVARCHAR(60)`; `facility_type NVARCHAR(30)`; `status VARCHAR(10)` CK IN (BAIK, RUSAK, PERBAIKAN).
-
-**equipment** — `id` PK; `factory_id` FK; `line_id` NULL FK; `supplier_id` NULL FK; `equipment_name`, `equipment_type`, `brand NVARCHAR(60)`; `serial_no VARCHAR(40)` UQ; `purchase_date DATE`; `purchase_price DECIMAL(16,2)`; `service_interval_days SMALLINT`; `status VARCHAR(10)` CK IN (AKTIF, PERBAIKAN, RUSAK).
-
-**maintenances** — `id` PK; `equipment_id`, `facility_id` NULL FK (CK tepat satu terisi); `reported_by` FK → employees; `technician_id` NULL FK → employees; `vendor_id` NULL FK → suppliers; `maintenance_type VARCHAR(9)` CK IN (PREVENTIF, KOREKTIF); `damage_description NVARCHAR(300)`; `corrective_action NVARCHAR(300) NULL`; `repair_cost DECIMAL(16,2) NULL`; `status VARCHAR(10)` CK IN (DILAPORKAN, DIKERJAKAN, SELESAI); `reported_date DATETIME2(0)`; `finish_date DATETIME2(0) NULL`.
-
-### 4.5 Milik A — `05-akuntansi.sql`
-
-**accounts** — `account_code VARCHAR(10)` PK; `parent_code` NULL FK → accounts (rekursif); `account_name NVARCHAR(80)`; `account_type VARCHAR(10)` CK IN (ASET, KEWAJIBAN, EKUITAS, PENDAPATAN, BEBAN).
-
-**company_bank_accounts** — `id` PK; `factory_id` FK; `account_code` FK → accounts; `bank_name NVARCHAR(50)`; `account_no VARCHAR(30)` UQ; `currency CHAR(3)`.
-
-**journals** — `id` PK; `journal_no CHAR(11)` UQ (JU-TTBB-NNN); `factory_id` FK; `created_by` FK → employees; `journal_date DATE`; `description NVARCHAR(200)`; `reference_type VARCHAR(20)`; `reference_no VARCHAR(30)`.
-
-**journal_lines** (lemah) — PK (`journal_id`, `line_no SMALLINT`); `account_code` FK; `debit`, `credit DECIMAL(16,2)` DF 0; CK tepat satu dari debit/kredit > 0. Keseimbangan jurnal dijaga `sp_post_journal`.
-
-**payrolls** (lemah) — PK (`employee_id`, `period_year SMALLINT`, `period_month TINYINT`); `bank_account_id` FK → company_bank_accounts; `base_salary`, `position_allowance`, `meal_allowance`, `transport_allowance`, `overtime_pay`, `bpjs_deduction`, `pph21_deduction`, `other_deduction DECIMAL(16,2)`; `status VARCHAR(7)` CK IN (DRAF, DIBAYAR); `paid_date DATE NULL`. `net_salary` derived.
-
-### 4.6 Milik B — `06-penjualan.sql`
-
-**tax_types** — `id` PK; `tax_name NVARCHAR(40)`; `rate_pct DECIMAL(5,2)`; `valid_from DATE`; `account_code` FK → accounts.
-
-**taxes** — `id` PK; `tax_type_id` FK; `factory_id` FK; `tax_year SMALLINT`, `tax_month TINYINT`; `tax_base_amount DECIMAL(16,2)`; `tax_invoice_no VARCHAR(30) NULL`; `reference_type`, `reference_no`; `ntpn VARCHAR(20) NULL`; `status VARCHAR(8)` CK IN (TERUTANG, DISETOR); `deposit_date DATE NULL`. `tax_amount` derived.
-
-**sales_invoices** — `id` PK; `invoice_no CHAR(12)` UQ (INV-TTBB-NNN); `order_id` FK; `shipment_id` NULL FK; `cancellation_id` NULL FK; `invoice_type VARCHAR(9)` CK IN (DP, PELUNASAN, DENDA); `currency`, `exchange_rate`; `subtotal`, `discount`, `vat_amount DECIMAL(16,2)`; `due_date DATE`; `status VARCHAR(11)` CK IN (BELUM_LUNAS, LUNAS, BATAL); `created_at`.
-
-**supplier_bills** — `id` PK; `po_id` FK; `supplier_invoice_no VARCHAR(30)`; `bill_date`, `due_date DATE`; `currency CHAR(3)`; `total DECIMAL(16,2)`; `status VARCHAR(11)` CK IN (BELUM_LUNAS, LUNAS).
-
-**payments** — `id` PK; `direction VARCHAR(6)` CK IN (MASUK, KELUAR); `invoice_id`, `bill_id`, `cancellation_id` NULL FK (CK tepat satu terisi); `bank_account_id` FK; `amount DECIMAL(16,2)` CK > 0 (di skema tertulis `qty`, diperbaiki jadi `amount`); `currency`, `exchange_rate`; `payment_method VARCHAR(8)` CK IN (TRANSFER, TT, LC, GIRO, TUNAI) (sama dengan `order_level_payment_methods`); `reference_no VARCHAR(30)`; `status VARCHAR(8)` CK IN (BERHASIL, GAGAL, PENDING); `paid_date DATE`. `amount_idr` derived.
+Index mengikuti TSD 4.4 dan ditulis oleh pemilik tabelnya, di file tabel masing-masing.
 
 ---
 
-## 5. Objek database dan pemiliknya
+## 5. Nilai status dan pilihan tetap
 
-| Pemilik | Stored procedure | Function | View | Trigger |
-|---|---|---|---|---|
-| A | sp_record_login, sp_reset_password, sp_create_notification, sp_post_journal, sp_process_payroll | fn_next_doc_no, fn_employee_of_user | v_active_sessions, v_login_history, v_employee_directory (tanpa gaji dan rekening) | trg_activity_logs_append_only, trg_interns_check, trg_no_delete_transactions (tabel A: attendances, journals, journal_lines, payrolls, employment_contracts) |
-| B | sp_create_order, sp_change_order_status, sp_cancel_order, sp_record_shipment, sp_issue_invoice, sp_record_payment | fn_next_order_code, fn_next_item_code, fn_cancellation_penalty | v_order_summary, v_price_history, v_dashboard_orders, v_shipment_history | trg_orders_immutable, trg_shipment_items_same_order, trg_no_delete_transactions (tabel B) |
-| C | sp_submit_spk, sp_decide_spk, sp_evaluate_flags, sp_receive_material, sp_record_stock_movement | fn_material_readiness, fn_material_requirement, fn_material_locked, fn_stage_max_allowed, fn_detail_completion_pct, fn_time_elapsed_pct, fn_reject_pct, fn_ready_to_ship | v_style_progress, v_supplier_materials, v_spk_list, v_stock_summary | trg_materials_lock, trg_no_delete_transactions (tabel C) |
+Teks status ditulis **HURUF KAPITAL dengan garis bawah**, persis seperti di bawah ini. Di kode backend, nilai ini diambil dari `constants.ts` (Bagian 7). Jangan mengetik ulang teksnya.
 
-Function yang dipakai lintas anggota (**nama dan parameter tidak boleh diubah tanpa persetujuan pemakainya**):
-
-| Function | Dibuat | Dipakai | Untuk |
-|---|---|---|---|
-| fn_ready_to_ship(@order_detail_id, @size) | C | B | Batas kiriman: Packing selesai dikurangi yang sudah dikirim |
-| fn_detail_completion_pct(@order_detail_id) | C | B | Persen selesai di dashboard (dulu fn_style_completion_pct) |
-| fn_time_elapsed_pct(@order_detail_id) | C | B | Persen waktu terpakai |
-| fn_reject_pct(@order_detail_id) | C | B | Persen tidak lolos, dari QC |
-| fn_material_requirement(@order_detail_id) | C | C, SMBD | Kebutuhan bahan dari BOM × jumlah per ukuran |
-| fn_cancellation_penalty(@order_id) | B | B, SMBD | Denda dan refund sesuai level order dan tahap terakhir |
-| fn_next_doc_no(@prefix, @at) | A | B (SJ, INV), C (SPK, PO), A (JU) | Nomor dokumen |
-| fn_employee_of_user(@user_id) | A | B, C | Mengambil `employee_id` dari akun login |
-| sp_create_notification | A | B, C | Notifikasi |
-
----
-
-## 6. Nilai status dan pilihan tetap
-
-Nilai yang dibawa dari v1:
-
-| Tabel.kolom | Nilai |
+| Tabel.kolom | Nilai yang boleh |
 |---|---|
 | orders.status | MENUNGGU_PERSETUJUAN, DISETUJUI, DITOLAK, DITARIK, DALAM_PRODUKSI, SELESAI, DIBATALKAN |
 | spk.status | MENUNGGU_PERSETUJUAN, DISETUJUI, DITOLAK |
+| sessions.status | AKTIF, BERAKHIR |
+| sessions.end_reason | LOGOUT, TIDAK_AKTIF, DIAKHIRI_ADMIN, RESET_PASSWORD, AKUN_NONAKTIF |
+| password_reset_requests.status | MENUNGGU, SELESAI |
 | orders.scheme | CMT, FOB |
 | suppliers.payment_term | LUNAS_AWAL, DP, KREDIT |
-| order_materials.source | BUYER, SUPPLIER |
-| production_stages.stage_code | CUTTING, SEWING, TRIMMING, FINISHING, IRONING, PACKING (urutan 1–6) |
-| qc_results.stage_code | Semua tahap kecuali PACKING |
+| materials.source | BUYER, SUPPLIER |
+| production_progress.stage | CUTTING, SEWING, TRIMMING, FINISHING, IRONING, PACKING (urutan tetap) |
+| qc_results.stage | CUTTING, SEWING, TRIMMING, FINISHING, IRONING |
+| signed_documents.doc_type | SPK, SURAT_JALAN |
+| roles.access_tier | SUPERADMIN, ADMIN, USER |
 | product_types.type_code | CL, KM, KS, PL, DR, JK, SR |
 | Status kesiapan bahan (hasil fn_material_readiness) | SIAP, BELUM_SIAP |
 
-Nilai `sessions`, `password_reset_requests`, dan `activity_logs` ada di Bagian 4.2.
+**Perpindahan status order:**
 
-**Perpindahan status order** (sama dengan v1):
-
-| Dari | Ke | Oleh |
-|---|---|---|
-| (baru) | MENUNGGU_PERSETUJUAN | MARKETING |
-| MENUNGGU_PERSETUJUAN | DISETUJUI / DITOLAK (final, alasan wajib) | PIMPINAN |
-| MENUNGGU_PERSETUJUAN | DITARIK (final, alasan wajib) | MARKETING |
-| DISETUJUI | DALAM_PRODUKSI | otomatis saat SPK pertama order itu disetujui |
-| DISETUJUI atau DALAM_PRODUKSI | DIBATALKAN (alasan wajib) | PIMPINAN |
-| DALAM_PRODUKSI | SELESAI | otomatis saat pengiriman dicatat |
-
-Nilai baru ada di kolom Keterangan di Bagian 4 (setiap `CK IN (...)`). Semua ditulis huruf kapital dengan garis bawah, dan di backend diambil dari `constants.ts`.
-
-Perpindahan status order sama dengan v1, dengan satu tambahan. Saat Pimpinan membatalkan order (`POST /orders/{id}/cancel`), `sp_cancel_order` juga membuat baris `order_cancellations` berstatus DISETUJUI, lengkap dengan denda dan refund hasil `fn_cancellation_penalty`.
-
----
-
-## 7. Role
-
-| role_code | Nama tampilan | access_tier | Lingkup |
+| Dari | Ke | Oleh | Endpoint |
 |---|---|---|---|
-| SUPERADMIN | Super Admin | SUPERADMIN | **Hanya SMBD.** Seluruh halaman `/smbd/*` dan data master |
-| ADMIN | Administrator Sistem | ADMIN | RSI (dulu tier SUPERADMIN) |
-| PIMPINAN | Pimpinan | ADMIN | RSI |
-| MARKETING | Marketing | USER | RSI |
-| PPIC | PPIC | USER | RSI |
-| SPV | Supervisor | USER | RSI |
-| QC | Quality Control | USER | RSI |
+| (baru) | MENUNGGU_PERSETUJUAN | MARKETING | POST /orders |
+| MENUNGGU_PERSETUJUAN | DISETUJUI | PIMPINAN | POST /orders/{id}/approve |
+| MENUNGGU_PERSETUJUAN | DITOLAK (final) | PIMPINAN | POST /orders/{id}/reject (alasan wajib) |
+| MENUNGGU_PERSETUJUAN | DITARIK (final) | MARKETING | POST /orders/{id}/withdraw (alasan wajib) |
+| DISETUJUI | DALAM_PRODUKSI | otomatis | saat SPK pertama order itu disetujui |
+| DISETUJUI atau DALAM_PRODUKSI | DIBATALKAN | PIMPINAN | POST /orders/{id}/cancel (alasan wajib) |
+| DALAM_PRODUKSI | SELESAI | otomatis | saat pengiriman dicatat |
 
-Role ditentukan oleh akun, bukan dipilih saat login. Tidak ada pilihan role di halaman login. **[TERBUKA: konfirmasi Pak Bawi soal role di luar lingkup RSI]**
+**Perpindahan status SPK:** SPK dibuat dengan status MENUNGGU_PERSETUJUAN, lalu menjadi DISETUJUI atau DITOLAK oleh PIMPINAN. Alasan wajib diisi bila ditolak. Setelah SPK ditolak, PPIC boleh mengajukan SPK baru untuk style yang sama.
 
 ---
 
-## 8. Konvensi kode
+## 6. Role
 
-Struktur folder dan lapisan sama dengan v1 (router → controller → service → repository; `authenticate → authorize → validate → controller`). Tambahan:
+| role_code | Nama tampilan | access_tier |
+|---|---|---|
+| ADMIN | Administrator Sistem | SUPERADMIN |
+| PIMPINAN | Pimpinan | ADMIN |
+| MARKETING | Marketing | USER |
+| PPIC | PPIC | USER |
+| SPV | Supervisor | USER |
+| QC | Quality Control | USER |
 
-- Modul SMBD ada di `routes/smbd/`, `controllers/smbd/`, dan seterusnya, dengan prefix URL `/api/v1/smbd`. Semua dijaga `authorize(ROLE.SUPERADMIN)`.
-- Skema Drizzle dipisah per schema database (`app`, `garment`) memakai helper schema dari drizzle-orm. Nama tabel di query mentah selalu ditulis lengkap (`garment.orders`).
-- `req.user` berisi `{ id, username, role_code, employee_id, factory_id }`. Nilai ini diisi `authenticate` lewat satu query join `users → employees`. Service memakai `req.user.employee_id` untuk semua kolom `*_by`.
-- **Ketentuan OOP RSI** (enkapsulasi, inheritance, overriding, overloading, polymorphism, komposisi, agregasi, asosiasi) diterapkan di lapisan service dan repository: `BaseRepository<T>` diturunkan ke repository tiap modul, `AppError extends Error`, dan seterusnya. Contohnya ditulis A saat membuat kerangka backend (Hari 1–2), lalu dipakai semua anggota.
+`role_code` ditulis persis seperti di atas, baik di database, di JWT, di `authorize(...)`, maupun di frontend. Contohnya `SPV`, bukan `SUPERVISOR`.
 
-Tambahan `constants.ts`:
+---
+
+## 7. Konvensi kode
+
+### 7.1 Struktur folder backend
+
+```
+backend/src/
+  db/
+    index.ts          (koneksi, dibuat A)
+    schema/
+      index.ts        (hanya export dari 3 file di bawah, dibuat A)
+      core.ts         (A)
+      order.ts        (B)
+      produksi.ts     (C)
+  routes/index.ts     (memasang semua router, dibuat A pada Hari 2)
+  routes/<modul>.routes.ts
+  controllers/<modul>.controller.ts
+  services/<modul>.service.ts
+  repositories/<modul>.repository.ts
+  schemas/<modul>.schema.ts      (Zod)
+  middlewares/                   (authenticate, authorize, validate, error handler; dibuat A)
+  constants.ts                   (dibuat A)
+  db/pool.ts                     (getPool() untuk mssql, dibuat A)
+  utils/response.ts, utils/errors.ts, utils/activity-log.ts, utils/transaction.ts   (dibuat A)
+```
+
+Nama `<modul>` dan pemiliknya:
+
+| Pemilik | Modul |
+|---|---|
+| A | auth, users, sessions, password-reset-requests, activity-logs, notifications |
+| B | buyers, orders, price-history, dashboard, reports, shipments |
+| C | suppliers, materials, spk, progress, qc-results, signed-documents |
+
+Urutan middleware di setiap route: `authenticate` → `authorize(...)` → `validate(schema)` → controller.
+
+Lapisan: router → controller → service → repository. Controller hanya membaca request dan mengirim response. Aturan bisnis ada di service. Query database hanya ada di repository.
+
+### 7.2 Penamaan
+
+| Hal | Aturan | Contoh |
+|---|---|---|
+| Tabel dan kolom | snake_case | `order_styles.price_per_pcs` |
+| Properti Drizzle | Sama persis dengan nama kolom | `price_per_pcs: decimal('price_per_pcs', ...)` |
+| Field JSON request/response | snake_case | `{ "buyer_id": "...", "reject_limit_pct": 3 }` |
+| URL | Jamak, kebab-case, aksi sebagai sub-resource | `/api/v1/order-styles/{styleId}/materials`, `/orders/{id}/approve` |
+| File | kebab-case dengan akhiran lapisan | `price-history.service.ts` |
+| Variabel dan fungsi TS | camelCase | `getOrderById` |
+| Komponen React | PascalCase | `OrderForm.tsx` |
+| Konstanta | UPPER_SNAKE_CASE | `ORDER_STATUS.DISETUJUI` |
+
+### 7.3 Isi `constants.ts`
 
 ```ts
 export const ROLE = {
-  SUPERADMIN: 'SUPERADMIN', ADMIN: 'ADMIN', PIMPINAN: 'PIMPINAN',
-  MARKETING: 'MARKETING', PPIC: 'PPIC', SPV: 'SPV', QC: 'QC',
+  ADMIN: 'ADMIN', PIMPINAN: 'PIMPINAN', MARKETING: 'MARKETING',
+  PPIC: 'PPIC', SPV: 'SPV', QC: 'QC',
 } as const;
-export const ORDER_LEVEL = { DOMESTIK: 'DOMESTIK', INTERNASIONAL: 'INTERNASIONAL' } as const;
-export const INSPECTION_TYPE = { INCOMING: 'INCOMING', INLINE: 'INLINE', FINAL: 'FINAL' } as const;
-export const PAYMENT_METHOD = ['TRANSFER', 'TT', 'LC', 'GIRO', 'TUNAI'] as const;
-export const CANCELLATION_STATUS = { MENUNGGU: 'MENUNGGU', DISETUJUI: 'DISETUJUI', DITOLAK: 'DITOLAK' } as const;
-// DOC_TYPE dihapus bersama fitur salinan bertanda tangan
+
+export const ORDER_STATUS = {
+  MENUNGGU_PERSETUJUAN: 'MENUNGGU_PERSETUJUAN', DISETUJUI: 'DISETUJUI',
+  DITOLAK: 'DITOLAK', DITARIK: 'DITARIK', DALAM_PRODUKSI: 'DALAM_PRODUKSI',
+  SELESAI: 'SELESAI', DIBATALKAN: 'DIBATALKAN',
+} as const;
+
+export const SPK_STATUS = {
+  MENUNGGU_PERSETUJUAN: 'MENUNGGU_PERSETUJUAN', DISETUJUI: 'DISETUJUI', DITOLAK: 'DITOLAK',
+} as const;
+
+export const STAGES = ['CUTTING', 'SEWING', 'TRIMMING', 'FINISHING', 'IRONING', 'PACKING'] as const;
+export const QC_STAGES = ['CUTTING', 'SEWING', 'TRIMMING', 'FINISHING', 'IRONING'] as const;
+
+export const SESSION_STATUS = { AKTIF: 'AKTIF', BERAKHIR: 'BERAKHIR' } as const;
+export const SESSION_END_REASON = {
+  LOGOUT: 'LOGOUT', TIDAK_AKTIF: 'TIDAK_AKTIF', DIAKHIRI_ADMIN: 'DIAKHIRI_ADMIN',
+  RESET_PASSWORD: 'RESET_PASSWORD', AKUN_NONAKTIF: 'AKUN_NONAKTIF',
+} as const;
+
+export const SCHEME = ['CMT', 'FOB'] as const;
+export const PAYMENT_TERM = ['LUNAS_AWAL', 'DP', 'KREDIT'] as const;
+export const MATERIAL_SOURCE = ['BUYER', 'SUPPLIER'] as const;
+export const DOC_TYPE = { SPK: 'SPK', SURAT_JALAN: 'SURAT_JALAN' } as const;
+
+// Peran yang boleh melihat harga (TSD AC-08)
+export const PRICE_VISIBLE_ROLES = [ROLE.MARKETING, ROLE.PIMPINAN];
 ```
 
----
-
-## 9. Format API
-
-Sama dengan v1 Bagian 8: bentuk response, kode HTTP, kode error, dan aturan kolom harga. Tambahan:
-
-- Kolom harga yang disembunyikan dari role selain MARKETING dan PIMPINAN sekarang meliputi `unit_price`, `discount_pct`, `material_price`, `total_value`, `penalty_amount`, dan `refund_amount`.
-- `total_value` **bukan kolom tabel**. Nilainya dihitung `v_order_summary` dengan rumus `total_value = Σ (qty − cancelled_qty) × unit_price × (1 − discount_pct/100)` atas semua baris `order_detail_sizes` milik order itu (`unit_price` dan `discount_pct` diambil dari `order_details`). Pembatalan sebagian ikut terhitung lewat `cancelled_qty`. Di skema konseptual atribut derived ini bernama `total_order_value`; namanya diseragamkan menjadi `total_value` (T-06). Field API dan kolom view memakai nama `total_value`.
-- Kode error baru per modul (`ERR-BTL-xx` pembatalan, `ERR-STK-xx` stok, `ERR-JRN-xx` jurnal, dst.) dicatat pemilik modul di tabel kode error, lalu disalin ke FSD saat revisi dokumen.
+Nilai `ACTION_TYPE` (Bagian 10) dan `NOTIF` (Bagian 11) juga ditaruh di file ini.
 
 ---
 
-## 10. Login, sesi, log aktivitas, notifikasi
+## 8. Format API
 
-- Login dan sesi sama dengan v1 Bagian 9. `GET /auth/me` sekarang mengembalikan `full_name` dari `employees`, ditambah `factory_id`.
-- Log aktivitas sama dengan v1 Bagian 10 dan 10.1 (pola `withTransaction`). `action_type` UNGGAH_DOKUMEN dihapus.
-- Notifikasi N-01 sampai N-11 sama dengan v1. N-12 dan N-13 dihapus. Notifikasi untuk modul SMBD tidak dibuat.
+### 8.1 Dasar
 
----
+- Base URL backend: `http://localhost:3000/api/v1`. Swagger ada di `http://localhost:3000/docs`.
+- Method yang dipakai: GET (baca), POST (buat data atau aksi status), PATCH (ubah sebagian). **DELETE tidak dipakai**, karena data transaksi tidak boleh dihapus.
+- Format data:
+  - Tanggal: `YYYY-MM-DD`
+  - Waktu: ISO 8601 dengan zona `+07:00`
+  - Uang: angka dalam Rupiah dengan 2 desimal
+  - ID: UUID dalam bentuk string
+- Halaman daftar memakai query `?page=1&per_page=20`. Hasilnya dilengkapi `meta`.
+- Kolom harga (`price_per_pcs`, `material_price`, `total_value`) **dihapus dari response** untuk role selain MARKETING dan PIMPINAN. Ini dikerjakan di service, sebelum response dikirim.
 
-## 11. Format nomor
+### 8.2 Bentuk response
 
-| Nomor | Format | Function |
+Sukses:
+
+```json
+{ "status": "success", "data": { }, "message": "Order berhasil disimpan." }
+```
+
+Sukses untuk daftar:
+
+```json
+{ "status": "success", "data": [ ], "meta": { "current_page": 1, "per_page": 20, "total": 57, "last_page": 3 } }
+```
+
+Error:
+
+```json
+{
+  "status": "error",
+  "error_code": "ERR-VAL-01",
+  "message": "Kolom ini wajib diisi.",
+  "errors": [ { "field": "deadline", "message": "Kolom ini wajib diisi." } ]
+}
+```
+
+- `error_code` dan `message` diambil dari tabel kode error FSD Bagian 6. Teksnya disalin persis.
+- `errors` hanya diisi untuk kesalahan per kolom (validasi Zod).
+- Detail teknis seperti stack trace atau pesan SQL **tidak** dikirim ke frontend. Detail itu cukup ditulis ke `console.error` di server.
+- Helper yang dipakai semua anggota (dibuat A): `sendSuccess(res, data, message?, meta?, statusCode?)` dan `throw new AppError(httpStatus, 'ERR-XXX-NN', message?)`.
+
+### 8.3 Kode HTTP
+
+| Kode | Dipakai untuk |
+|---|---|
+| 200 | Berhasil membaca atau mengubah |
+| 201 | Berhasil membuat data baru |
+| 202 | Permintaan diterima (ajukan reset password) |
+| 401 | Belum login atau sesi berakhir (ERR-AUTH-01/04/05, ERR-AUTH-02 saat login) |
+| 403 | Role tidak berhak (ERR-AUTH-03), atau wajib ganti password dulu (ERR-AUTH-07) |
+| 404 | Data tidak ditemukan |
+| 409 | Melanggar aturan bisnis, mis. order sudah diputuskan (ERR-ORD-02) |
+| 422 | Isian tidak valid (ERR-VAL-xx) |
+| 423 | Akun terkunci (ERR-AUTH-06) |
+| 500 / 503 | Kesalahan server (ERR-SYS-02) / database tidak bisa diakses (ERR-SYS-01) |
+
+### 8.4 Kelompok kode error (FSD Bagian 6) dan pemiliknya
+
+| Awalan | Isi | Pemilik |
 |---|---|---|
-| Kode order | ORD-TTBB-NNN | fn_next_order_code |
-| Kode barang | BBB-JJ-NNNN (BBB = `GEN` bila tanpa buyer) | fn_next_item_code |
-| SKU varian | {kode barang}-{ukuran}-{NN} | dibuat di service B |
-| SPK | SPK-TTBB-NNN | fn_next_doc_no('SPK') |
-| Surat jalan | SJ-TTBB-NNN | fn_next_doc_no('SJ') |
-| Purchase order | PO-TTBB-NNN | fn_next_doc_no('PO') |
-| Invoice | INV-TTBB-NNN | fn_next_doc_no('INV') |
-| Jurnal | JU-TTBB-NNN | fn_next_doc_no('JU') |
+| ERR-AUTH-01 sampai 07 | Login, sesi, hak akses | A |
+| ERR-USR-01, ERR-SES-01 | Akun dan sesi | A |
+| ERR-VAL-01 sampai 14 | Validasi isian (dipakai semua) | Semua |
+| ERR-ORD-01 sampai 05 | Order | B |
+| ERR-KRM-01, 02 | Pengiriman | B |
+| ERR-BHN-01 | Bahan baku | C |
+| ERR-SPK-01 sampai 04 | SPK | C |
+| ERR-PRG-01 sampai 04 | Progres | C |
+| ERR-QC-01, 02 | Hasil QC | C |
+| ERR-DOK-01, 02 | Salinan bertanda tangan | C (dipakai juga oleh B) |
+| ERR-SYS-01, 02 | Kesalahan sistem | A (error handler) |
 
 ---
 
-## 12. Akun demo
+## 9. Login dan sesi
 
-Setiap akun wajib terhubung ke satu karyawan (`has_account`). Seed A membuat 1 pabrik, 1 gudang barang jadi, 1 gudang bahan, dan 7 karyawan.
+- Login: `POST /api/v1/auth/login` dengan body `{ "username": "...", "password": "..." }`.
+- Token JWT berlaku 8 jam dan disimpan di **cookie HttpOnly bernama `token`**, sama seperti praktikum. Frontend memakai axios dengan `withCredentials: true` dan tidak pernah membaca token itu sendiri.
+- Isi JWT: `{ sub: user_id, role: role_code, sid: session_id }`.
+- Di setiap request, `authenticate` memeriksa tiga hal. Pertama, tokennya valid. Kedua, sesi `sid` di tabel `sessions` masih AKTIF. Ketiga, `last_activity_at` belum lewat 30 menit. Bila lolos, `last_activity_at` diperbarui. Bila tidak lolos, server mengirim 401 dengan kode ERR-AUTH-04 atau ERR-AUTH-05.
+- `authorize(ROLE.PIMPINAN, ...)` menolak role lain dengan 403 ERR-AUTH-03 dan mencatat log AKSES_DITOLAK.
+- Akun terkunci setelah 5 kali gagal login berturut-turut. Password minimal 8 karakter dan di-hash dengan bcrypt.
+- `GET /api/v1/auth/me` mengembalikan `{ id, full_name, username, role_code, menus, unread_notifications }`. Frontend memakai `menus` untuk membentuk sidebar.
 
-| username | role_code | Karyawan seed | Password |
+---
+
+## 10. Log aktivitas
+
+Log dicatat oleh **service**, di dalam transaksi yang sama dengan perubahan datanya, memakai helper buatan A di `utils/activity-log.ts`:
+
+```ts
+await logActivity(tx, {
+  user_id: req.user.id,          // null bila username tidak dikenal
+  username: req.user.username,
+  action_type: ACTION_TYPE.SETUJU,
+  resource_type: 'orders',       // nama tabel
+  resource_id: order.id,
+  old_values: { status: 'MENUNGGU_PERSETUJUAN' },   // opsional
+  new_values: { status: 'DISETUJUI' },              // opsional
+  device, ip_address,
+});
+```
+
+Kalau transaksi gagal, log ikut dibatalkan, jadi tidak ada log untuk aksi yang tidak terjadi.
+
+### 10.1 Pola transaksi (disepakati 16/11/2026)
+
+Pola ini mengikuti contoh audit log praktikum pertemuan 9.
+
+| Jenis query | Dipakai | Keterangan |
+|---|---|---|
+| **Tulis** (simpan, ubah, setujui, tolak, batal, unggah) | `withTransaction()` + `sql.Transaction` dari `mssql` | Semua query di dalamnya memakai `new sql.Request(transaction)`, termasuk pemanggilan SP dan `logActivity` |
+| **Baca** (daftar, detail, dashboard) | Drizzle (`getDb()`) atau view | Tidak perlu transaksi |
+
+- `tx` di `logActivity(tx, ...)` bertipe `sql.Transaction`.
+- Jangan memakai `db.transaction()` milik Drizzle, karena tidak bisa digabung dengan `sql.Transaction`.
+- Parameter selalu lewat `.input('nama', sql.Tipe, nilai)`. Jangan menyambung teks ke dalam query.
+
+Helper buatan A di `utils/transaction.ts`:
+
+```ts
+export async function withTransaction<T>(
+  work: (transaction: sql.Transaction) => Promise<T>,
+): Promise<T> {
+  const transaction = new sql.Transaction(await getPool());
+  await transaction.begin();
+  try {
+    const result = await work(transaction);
+    await transaction.commit();
+    return result;
+  } catch (error) {
+    try { await transaction.rollback(); } catch { /* sudah di-rollback SQL Server */ }
+    throw error;
+  }
+}
+```
+
+Contoh di service (C, setujui SPK):
+
+```ts
+return withTransaction(async (tx) => {
+  const spk = await this.spkRepository.decide(tx, { spk_id, decision: 'DISETUJUI', decided_by: user.id });
+  await logActivity(tx, {
+    user_id: user.id, username: user.username,
+    action_type: ACTION_TYPE.SETUJU, resource_type: 'spk', resource_id: spk_id,
+    old_values: { status: SPK_STATUS.MENUNGGU_PERSETUJUAN },
+    new_values: { status: SPK_STATUS.DISETUJUI },
+    device, ip_address,
+  });
+  return spk;
+});
+
+// di repository
+async decide(tx: sql.Transaction, p: DecideSpkInput) {
+  const result = await new sql.Request(tx)
+    .input('spk_id', sql.UniqueIdentifier, p.spk_id)
+    .input('decision', sql.VarChar(20), p.decision)
+    .input('decided_by', sql.UniqueIdentifier, p.decided_by)
+    .execute('sp_decide_spk');
+  return result.recordset[0];
+}
+```
+
+Nilai `action_type` (17 nilai, FSD Entitas 2):
+
+| Nilai | Dicatat saat | Dicatat oleh |
+|---|---|---|
+| LOGIN_BERHASIL, LOGIN_GAGAL, LOGOUT | Login berhasil, gagal, dan keluar | A |
+| SESI_BERAKHIR, SESI_DIAKHIRI | Sesi habis karena tidak aktif, atau diakhiri Administrator | A |
+| AKUN_TERKUNCI, BUKA_KUNCI | Akun terkunci setelah 5 kali gagal, dan dibuka Administrator | A |
+| RESET_PASSWORD, GANTI_PASSWORD | Reset oleh Administrator, dan ganti password sementara | A |
+| AKSES_DITOLAK | Role membuka fungsi yang bukan haknya (di `authorize`) | A |
+| TAMBAH, UBAH | Menyimpan atau mengubah data apa pun (buyer, order, supplier, bahan, SPK, progres, QC, pengiriman, akun) | Pemilik modul |
+| SETUJU, TOLAK | Persetujuan atau penolakan order dan SPK | B (order), C (SPK) |
+| TARIK, BATAL | Tarik pengajuan order, dan batalkan order | B |
+| UNGGAH_DOKUMEN | Unggah salinan bertanda tangan | C, B |
+
+Syarat RPS: login, logout, dan akses ditolak harus tercatat. Ini dicek di Hari 11.
+
+---
+
+## 11. Notifikasi
+
+Notifikasi dibuat lewat `sp_create_notification` (milik A), dari dalam SP atau service pemilik kejadian. Isi `message` mengikuti contoh di SRS Tabel 3.2a.
+
+| Kode | Kejadian | Penerima | Dibuat oleh |
 |---|---|---|---|
-| superadmin | SUPERADMIN | Staf Sistem Informasi | `Solaris#2026` |
-| admin.solaris | ADMIN | Staf IT | `Solaris#2026` |
-| pimpinan | PIMPINAN | Direktur | `Solaris#2026` |
-| marketing | MARKETING | Staf Marketing | `Solaris#2026` |
-| ppic | PPIC | Staf PPIC | `Solaris#2026` |
-| supervisor | SPV | Supervisor Lini 1 | `Solaris#2026` |
-| qc.solaris | QC | Staf QC | `Solaris#2026` |
+| N-01 | Order baru disimpan | PIMPINAN | B |
+| N-02 | SPK diajukan | PIMPINAN | C |
+| N-03 | Order disetujui atau ditolak | MARKETING, PPIC | B |
+| N-04 | Pengajuan order ditarik | PIMPINAN | B |
+| N-05 | SPK disetujui atau ditolak | PPIC; SPV hanya bila disetujui | C |
+| N-06 | Order dibatalkan | MARKETING, PPIC, SPV, QC | B |
+| N-07 | Style atau order pertama kali berisiko terlambat | PIMPINAN, PPIC | C (sp_evaluate_flags) |
+| N-08 | Persen tidak lolos pertama kali melebihi batas reject | PIMPINAN, PPIC | C (sp_evaluate_flags) |
+| N-09 | Pengiriman dicatat, order selesai | PIMPINAN, MARKETING | B |
+| N-10 | Ada permintaan reset password | ADMIN | A |
+| N-11 | Akun terkunci | ADMIN | A |
+| N-12 | Salinan SPK bertanda tangan diunggah | PPIC, SPV | C |
+| N-13 | Salinan surat jalan bertanda tangan diunggah | PIMPINAN, MARKETING | B |
+
+Frontend memanggil `GET /api/v1/notifications` setiap 30 detik (dibuat A).
 
 ---
 
-## 13. Keamanan database (SMBD, file `10-security.sql`, pemilik A)
+## 12. Format nomor dan akun demo
 
-Mengikuti materi *Security and Authorization*:
+**Format nomor** (dibuat oleh function, bukan diketik pengguna):
 
-| Login / user | Dipakai oleh | Hak |
-|---|---|---|
-| `app_rsi` | Backend saat role RSI login, **dan semua proses login** (sebelum login role belum diketahui) | Schema `app`: SELECT/INSERT/UPDATE `users` (buat akun FSD-2.2, reset dan ganti password, kunci akun, `last_login_at`); SELECT `roles`; SELECT/INSERT/UPDATE `sessions` (login, `last_activity_at`, logout, akhiri sesi); SELECT/INSERT `activity_logs` (tulis log, halaman Log Aktivitas FSD-2.23); SELECT/INSERT/UPDATE `password_reset_requests`; SELECT/INSERT/UPDATE `notifications`; SELECT `v_login_history` (FSD-2.19) dan `v_active_sessions` (FSD-2.22); EXECUTE SP milik A. Schema `garment`: SELECT/INSERT/UPDATE pada tabel yang dipakai RSI; EXECUTE SP RSI. DENY DELETE di semua tabel (RB-67 hanya mengizinkan tambah/ubah bahan, jadi tidak perlu izin hapus) |
-| `app_smbd` | Backend saat SUPERADMIN login | Schema `app`: **hak yang sama dengan `app_rsi`** (SUPERADMIN tetap melewati `authenticate`, logout, ganti password, dan `logActivity` di dalam `withTransaction`, yang harus memakai login yang sama dengan transaksinya). Schema `garment`: SELECT/INSERT/UPDATE semua tabel; EXECUTE semua SP. DENY DELETE pada tabel transaksi |
-| Role database `rl_keuangan`, `rl_gudang`, `rl_hrd` | Demo SMBD di SSMS | Contoh hak per tabel/kolom. Contohnya `rl_hrd` boleh melihat gaji, sedangkan role lain hanya melihat `v_employee_directory` |
-
-Backend memakai dua pool koneksi (`getPool('rsi')`, `getPool('smbd')`) sesuai role yang login. **[TERBUKA: dipakai atau cukup satu login]**
-
----
-
-## 14. Endpoint
-
-### 14.1 RSI: fitur tambahan yang masuk (K-07) dan prioritasnya
-
-| Fitur | Halaman | Pemilik | Prioritas |
+| Nomor | Format | Contoh | Function |
 |---|---|---|---|
-| Ekspedisi dipilih dari daftar | Pengiriman | B | W |
-| Diskon per style | Form Order | B | W |
-| Level order (isian internasional) | Form Order | B | W |
-| Lini produksi pada SPK | SPK | C | W |
-| Jenis cacat di hasil QC | Hasil QC | C | W |
-| Denda dan refund otomatis saat pembatalan | Persetujuan, Detail Order | B | S |
-| Standar QC | Hasil QC | C | S |
-| Master bahan + BOM (kebutuhan otomatis) | Bahan Baku | C | S |
-| Pemakaian bahan per SPK | Halaman baru SCR-26 | C | T |
+| Kode order | ORD-TTBB-NNN | ORD-2611-003 | fn_next_order_code |
+| Kode barang | BBB-JJ-NNNN | BRT-KS-0005 | fn_next_item_code |
+| Nomor SPK | SPK-TTBB-NNN | SPK-2611-004 | fn_next_doc_no('SPK', ...) |
+| Nomor surat jalan | SJ-TTBB-NNN | SJ-2611-012 | fn_next_doc_no('SJ', ...) |
 
-W = Wajib, S = Kalau sempat, T = Terakhir. Tabelnya tetap dibuat lengkap sejak Hari 1; yang bertahap hanya tampilannya.
+Keterangan: TT = 2 digit tahun, BB = bulan, NNN/NNNN = nomor urut, BBB = kode buyer, JJ = kode jenis produk.
 
-### 14.2 RSI: endpoint yang berubah dari v1
+**Akun demo** (di `90-seed-core.sql`):
 
-| v1 | v2 | Pemilik |
+| username | role_code | Password |
 |---|---|---|
-| GET, POST /order-styles/{styleId}/materials | GET, POST /order-details/{id}/materials | C |
-| POST /spk (style_id, sizes) | POST /spk (order_detail_id, line_id, sizes) | C |
-| POST /spk/{id}/qc-results (stage, qty_passed) | + standard_id, sample_qty, defects[] | C |
-| POST /shipments (order_id, expedition teks) | POST /shipments (order_id, expedition_id, items[]: order_detail_id, size, qty) | B |
-| POST /orders/{id}/cancel | Response ditambah penalty_amount dan refund_amount | B |
-| POST /spk/{id}/signed-documents, /shipments/{id}/signed-documents, /signed-documents/{id}/file, GET /spk/{id}/print | **dihapus** (cetak SPK boleh tetap kalau sempat) | B, C |
+| admin.solaris | ADMIN | `Solaris#2026` |
+| pimpinan | PIMPINAN | `Solaris#2026` |
+| marketing | MARKETING | `Solaris#2026` |
+| ppic | PPIC | `Solaris#2026` |
+| supervisor | SPV | `Solaris#2026` |
+| qc.solaris | QC | `Solaris#2026` |
 
-### 14.3 RSI: endpoint baru (hanya baca, untuk dropdown)
+Semua akun memakai password yang sama, supaya mudah dipakai saat uji coba. A membuat hash bcrypt-nya sekali, lalu menempelkannya ke file seed:
 
-| Method | URL | Role | Pemilik |
+```
+node -e "console.log(require('bcryptjs').hashSync('Solaris#2026', 12))"
+```
+
+Username minimal 4 karakter (CHECK di tabel users). Karena itu akun QC memakai `qc.solaris`, bukan `qc`.
+
+---
+
+## 13. Endpoint dan pemiliknya (TSD 3.2)
+
+Semua URL diawali `/api/v1`. Tanda "Prioritas" mengikuti tabel prioritas di Rencana Kerja: W = Wajib, S = Kalau sempat, T = Terakhir.
+
+**A: Fondasi dan Admin**
+
+| Method | URL | Role | Prioritas |
 |---|---|---|---|
-| GET | /order-levels | MARKETING | B |
-| GET | /expeditions | PPIC | B |
-| GET | /orders/{id}/cancellation-preview | PIMPINAN | B |
-| GET | /production-lines | PPIC | C |
-| GET | /qc-standards?type_code= | QC | C |
-| GET | /defect-types | QC | C |
-| GET | /raw-materials | PPIC | C |
-| GET | /order-details/{id}/material-requirement | PPIC | C |
-| GET, POST | /spk/{id}/material-usages | SPV, PPIC | C |
+| POST | /auth/login | Publik | W |
+| POST | /auth/logout | Semua yang login | W |
+| GET | /auth/me | Semua yang login | W |
+| POST | /auth/change-password | Semua yang login | S |
+| POST | /auth/password-reset-requests | Publik | T |
+| GET | /me/login-history | Semua yang login | T |
+| GET, POST | /users | ADMIN | W |
+| PATCH | /users/{id} | ADMIN | W |
+| POST | /users/{id}/unlock | ADMIN | S |
+| POST | /users/{id}/reset-password | ADMIN | S |
+| GET | /password-reset-requests | ADMIN | T |
+| GET | /sessions | ADMIN | S |
+| POST | /sessions/{id}/terminate | ADMIN | S |
+| GET | /activity-logs | ADMIN | W |
+| GET | /notifications | Semua yang login | S |
+| PATCH | /notifications/{id}/read, /notifications/read-all | Semua yang login | S |
 
-Endpoint v1 lain (auth, users, sessions, buyers, orders, approve/reject, progress, dashboard, dst.) tetap, dengan `styleId` diganti `orderDetailId` di semua path.
+**B: Order dan Pengiriman**
 
-### 14.4 SMBD: `/api/v1/smbd/*` (SUPERADMIN)
-
-| Jenis | Endpoint | Pemilik |
-|---|---|---|
-| Penampil tabel umum | GET /smbd/tables, GET /smbd/tables/{table}?page=&q= — **hanya schema `garment`**. Nama tabel dicek terhadap daftar tabel `garment` (whitelist), sehingga tabel `app` (termasuk `password_hash`) tidak pernah bisa dibuka | A |
-| Master data RSI | CRUD /smbd/production-lines, /qc-standards, /defect-types, /raw-materials, /bom | C |
-| | CRUD /smbd/order-levels, /cancellation-policies, /expeditions | B |
-| SDM | CRUD /smbd/employees, /contracts, /interns, /attendances; POST /smbd/payrolls/process | A |
-| Akuntansi | POST /smbd/journals (lewat sp_post_journal) | A |
-| Supply chain dan stok | POST /smbd/purchase-orders, /smbd/receipts (sp_receive_material), /smbd/stock-movements, /smbd/stock-counts | C |
-| Penjualan | POST /smbd/invoices, /smbd/payments; pembatalan sebagian | B |
-| Aset | CRUD /smbd/equipment, /smbd/maintenances | C |
-
-**[TERBUKA]** Daftar halaman transaksi SMBD final mengikuti jawaban dosen SMBD.
-
----
-
-## 15. Halaman frontend
-
-### 15.1 RSI
-
-Sama dengan v1 Bagian 14, dengan perubahan:
-
-| SCR | Halaman | Perubahan | Pemilik |
+| Method | URL | Role | Prioritas |
 |---|---|---|---|
-| SCR-03 | Manajemen Pengguna | Buat akun = pilih karyawan yang belum punya akun, lalu username dan role | A |
-| SCR-05 | Formulir Order Baru | Tambah diskon per style dan level order (isian internasional muncul bila dipilih) | B |
-| SCR-06 / SCR-08 | Detail Order, Persetujuan | Pembatalan menampilkan denda dan refund | B |
-| SCR-10 | Bahan Baku | Bahan dipilih dari master; tampil kebutuhan dari BOM | C |
-| SCR-11 | SPK | Pilih lini produksi | C |
-| SCR-12 | Progres Harian | **Tidak berubah** (K-09) | C |
-| SCR-13 | Hasil QC | Pilih standar, jumlah sampel, daftar jenis cacat | C |
-| SCR-16 / SCR-17 | Pengiriman, Surat Jalan | Ekspedisi dari daftar; item dipilih per style dan ukuran | B |
-| SCR-25 | SPK Siap Cetak dan Salinan | **Dihapus** | C |
-| SCR-26 | Pemakaian Bahan per SPK | **Baru** (prioritas T) | C |
+| GET | /buyers | MARKETING, PIMPINAN | W |
+| POST | /buyers | MARKETING | W |
+| PATCH | /buyers/{id} | MARKETING | W |
+| GET | /product-types, /items | MARKETING | W |
+| POST | /orders | MARKETING | W |
+| GET | /orders, /orders/{id} | MARKETING, PIMPINAN, PPIC, SPV, QC | W |
+| POST | /orders/{id}/approve, /orders/{id}/reject | PIMPINAN | W |
+| POST | /orders/{id}/cancel | PIMPINAN | W |
+| POST | /orders/{id}/withdraw | MARKETING | T |
+| GET | /price-history | MARKETING, PIMPINAN | T |
+| GET | /dashboard | PIMPINAN | W |
+| GET | /reports/production | PIMPINAN, PPIC | T |
+| POST | /shipments | PPIC | W |
+| GET | /shipments | PPIC, PIMPINAN | W |
+| GET | /shipments/{id}/delivery-note | PPIC | W |
+| POST | /shipments/{id}/signed-documents | PPIC | T |
+| GET | /shipments/{id}/signed-documents | PIMPINAN, PPIC, MARKETING | T |
 
-### 15.2 SMBD (hanya SUPERADMIN, path `/smbd/*`)
+**C: Produksi**
 
-| Halaman | Path | Pemilik |
-|---|---|---|
-| Penampil tabel umum (pilih modul → tabel → lihat dan cari) | /smbd/data | A |
-| Master Produksi (lini, standar QC, jenis cacat, bahan, BOM) | /smbd/master-produksi | C |
-| Master Order (level order, kebijakan pembatalan, ekspedisi) | /smbd/master-order | B |
-| Karyawan dan Penggajian | /smbd/sdm | A |
-| Jurnal | /smbd/jurnal | A |
-| PO, Penerimaan, dan Stok | /smbd/gudang | C |
-| Invoice dan Pembayaran | /smbd/keuangan | B |
-| Aset dan Maintenance | /smbd/aset | C |
-
-Menu SMBD hanya dikirim `/auth/me` untuk role SUPERADMIN. Login dengan role RSI tidak akan pernah melihat menu ini.
-
----
-
-## 16. Rencana 5 hari rombak (usulan)
-
-| Hari | A | B | C |
+| Method | URL | Role | Prioritas |
 |---|---|---|---|
-| 1 | Finalisasi kontrak bersama; `00`, `01`, `02` | Finalisasi kontrak; mulai `03` | Finalisasi kontrak; mulai `04` |
-| 2 | `05`; seed `90`; kerangka backend + contoh OOP | `03` selesai; `06` | `04` selesai |
-| 3 | `07-objects-core`, `10-security` | seed `91`; `09-objects-order` | seed `92`; `08-objects-produksi` |
-| 4 | Jalankan semua dari nol, perbaiki FK/urutan; revisi mockup SCR-03 | Revisi mockup SCR-05/06/08/16/17 | Revisi mockup SCR-10/11/13 |
-| 5 | Uji bersama: login 7 akun, alur order → SPK → progres → QC → kirim | | |
+| GET | /suppliers | PPIC, PIMPINAN | W |
+| POST | /suppliers | PPIC | W |
+| PATCH | /suppliers/{id} | PPIC | W |
+| GET | /suppliers/{id}/materials | PPIC, PIMPINAN | W |
+| GET, POST | /order-styles/{styleId}/materials | PPIC | W |
+| PATCH | /materials/{id} | PPIC | W |
+| POST | /spk | PPIC | W |
+| GET | /spk, /spk/{id} | PPIC, PIMPINAN, SPV, QC | W |
+| POST | /spk/{id}/approve, /spk/{id}/reject | PIMPINAN | W |
+| POST | /spk/{id}/progress | SPV | W |
+| GET | /spk/{id}/progress | SPV, PPIC, PIMPINAN, QC | W |
+| PATCH | /progress/{id} | SPV | W |
+| POST | /spk/{id}/qc-results | QC | W |
+| GET | /spk/{id}/qc-results | QC, PPIC, PIMPINAN | W |
+| GET | /spk/{id}/print | PIMPINAN, PPIC, SPV | T |
+| POST | /spk/{id}/signed-documents | PIMPINAN | T |
+| GET | /spk/{id}/signed-documents | PIMPINAN, PPIC, SPV | T |
+| GET | /signed-documents/{id}/file | Sesuai jenis dokumen | T |
 
-Aturan Git sama dengan v1 Bagian 16.
+Isi request dan response tiap endpoint ada di TSD 3.3 (kartu spesifikasi endpoint).
 
 ---
 
-## 17. Hal yang belum diputuskan [TERBUKA]
+## 14. Halaman frontend dan pemiliknya
 
-| No | Pertanyaan | Pengaruh |
-|---|---|---|
-| T-01 | Pak Bawi: perombakan RSI, role SUPERADMIN di sistem yang sama, fitur tambahan, OOP di class diagram atau kode | K-02, K-07, K-10, Bagian 7 |
-| T-02 | Dosen SMBD: halaman SMBD cukup penampil umum + halaman transaksi di Bagian 15.2? | Bagian 14.4, 15.2 |
-| ~~T-03~~ | **Selesai 20/11/2026 (K-12):** satu surat jalan untuk satu order, boleh banyak barang. `shipments.order_id` ditambahkan | Bagian 4.3 |
-| T-04 | Dua login database (`app_rsi`, `app_smbd`) atau cukup satu? | Bagian 13, `db/pool.ts` |
-| T-05 | Pembagian anggota dan jumlah tabel di Bagian 2 sudah adil? | Bagian 2, 3 |
-| T-06 | Dokumen skema konseptual perlu direvisi menyesuaikan kontrak ini: K-03/K-04 (order_detail_sizes, spk_sizes), K-05, K-09, `buyer_style_code` bukan key, `payments.qty` → `amount`, `total_order_value` → `total_value`, metode bayar di `order_levels` dan `payments` diseragamkan, relasi baru `ships_order` (orders 1 : N shipments, partisipasi shipments total), aturan bisnis SMBD nomor 11 diubah menjadi "satu order boleh dikirim bertahap; satu pengiriman hanya untuk satu order" | Laporan SMBD |
+Path mengikuti FSD Bagian 3.
+
+| SCR | Halaman | Path | Pemilik |
+|---|---|---|---|
+| SCR-01 | Login | /login | A |
+| SCR-02 | Beranda | /beranda | A |
+| SCR-03 | Manajemen Pengguna | /pengguna | A |
+| SCR-19 | Ajukan Reset Password | /lupa-password | A |
+| SCR-20 | Ganti Password | /ganti-password | A |
+| SCR-21 | Riwayat Login Saya | /riwayat-login | A |
+| SCR-22 | Sesi Aktif | /sesi | A |
+| SCR-23 | Log Aktivitas | /log-aktivitas | A |
+| SCR-24 | Notifikasi | /notifikasi | A |
+| SCR-04 | Data Buyer | /buyer | B |
+| SCR-05 | Formulir Order Baru | /order/baru | B |
+| SCR-06 | Daftar dan Detail Order | /order | B |
+| SCR-07 | Riwayat Harga | /riwayat-harga | B |
+| SCR-08 | Persetujuan Order dan SPK | /persetujuan | B (bagian SPK dari C) |
+| SCR-14 | Dashboard Pimpinan | /dashboard | B |
+| SCR-15 | Rekap Produksi | /rekap | B |
+| SCR-16 | Pengiriman | /pengiriman | B |
+| SCR-17 | Surat Jalan (siap cetak) | /pengiriman/:id/surat-jalan | B |
+| SCR-18 | Riwayat Pengiriman | /riwayat-pengiriman | B |
+| SCR-09 | Supplier dan Bahan per Supplier | /supplier | C |
+| SCR-10 | Bahan Baku per Style | /bahan-baku | C |
+| SCR-11 | Surat Perintah Kerja | /spk | C |
+| SCR-12 | Progres Harian | /progres | C |
+| SCR-13 | Hasil QC | /qc | C |
+| SCR-25 | SPK Siap Cetak dan Salinan | /spk/:id/cetak | C |
+
+Aturan halaman:
+
+1. Pakai komponen bersama buatan A: Button, Badge status, Table, Input, Modal, Alert (R-13).
+2. Warna dan font hanya diambil dari token `@theme` di `index.css`.
+3. Validasi form ditulis di `lib/validation.ts`, mengikuti kolom Constraint dan Validasi di FSD.
+4. Setiap halaman menampilkan 4 kondisi: memuat, ada data, kosong, dan error dengan tombol Coba lagi (R-11).
+5. Badge status menampilkan teks yang mudah dibaca, mis. `MENUNGGU_PERSETUJUAN` → "Menunggu Persetujuan". Fungsi pengubahnya dibuat A di `lib/format.ts`.
 
 ---
 
-## 18. Riwayat perubahan
+## 15. Perbedaan dengan TSD v1.1
+
+Supaya bisa memakai kerangka kode praktikum, beberapa hal dibuat berbeda dari TSD v1.1. TSD perlu direvisi agar sama dengan daftar ini sebelum dikumpulkan.
+
+| Hal | TSD v1.1 | Yang dipakai di kontrak ini | Alasan |
+|---|---|---|---|
+| Penyimpanan token | Header `Authorization: Bearer` | Cookie HttpOnly `token` | Mengikuti praktikum pertemuan 7 |
+| Pencatatan log | Trigger `trg_audit_*` dengan SESSION_CONTEXT | Helper `logActivity()` di service, dalam transaksi | Lebih mudah dilacak, dan mencegah log tercatat dua kali. Trigger audit tidak dibuat |
+| Pembuatan tabel | Migrasi Drizzle Kit | Skrip SQL ditulis tangan (`db/*.sql`); skema Drizzle hanya untuk query | Mengikuti praktikum; Drizzle untuk SQL Server masih beta |
+| Frontend | Tailwind 3, TanStack Query, React Hook Form | Tailwind 4 (`@theme`), axios, validasi di `lib/validation.ts` | Mengikuti praktikum |
+| Alamat Swagger | /api/docs | /docs | Mengikuti praktikum |
+| Seed data | 6 akun, 3 buyer, 2 supplier | Sama, ditambah minimal 1 order DISETUJUI | Supaya C bisa langsung mencoba SPK (R-05) |
+
+Bentuk response error tetap mengikuti TSD (`status: 'error'` dengan `error_code`), bukan format `fail` dari praktikum, supaya kode error FSD bisa langsung dipakai. Error handler dari praktikum cukup disesuaikan sekali oleh A.
+
+---
+
+## 16. Aturan Git
+
+1. Setiap pagi: `git pull origin main`, lalu jalankan ulang skrip SQL kalau ada yang berubah.
+2. Kerjakan di branch `feat/<nama-fitur>`, mis. `feat/order-approve`. Jangan langsung di `main`.
+3. Setiap malam: buat Pull Request kecil untuk pekerjaan hari itu.
+4. Satu anggota lain membaca PR itu dan memastikan nama serta formatnya sesuai kontrak ini, baru di-merge.
+5. Jangan commit `.env`, `node_modules`, atau folder `uploads`.
+6. Pesan commit singkat dan jelas, mis. `feat(order): endpoint setujui order` atau `fix(spk): cek status order`.
+
+---
+
+## 17. Riwayat perubahan kontrak
 
 | Tanggal | Diubah oleh | Perubahan |
 |---|---|---|
-| 14/11/2026 | Kelompok 1 | v1: versi awal dari TSD v1.1, FSD v2.0, SRS v2.0 |
-| 16/11/2026 | Kelompok 1 | v1: tambah pola transaksi (Bagian 10.1) |
-| 20/11/2026 | Kelompok 1 | v2 DRAF revisi 4: Bagian 4.2 dan 6 ditulis lengkap (tidak lagi merujuk v1), karena KONTRAK v1 tidak ada di repo baru |
-| 20/11/2026 | Kelompok 1 | v2 DRAF revisi 3: K-12, `shipments.order_id` ditambahkan, trigger `trg_shipment_items_same_order`, T-03 ditutup |
-| 20/11/2026 | Kelompok 1 | v2 DRAF revisi 2: hak `app` lengkap untuk `app_rsi` (buat akun, baca log, baca permintaan reset, view riwayat login dan sesi aktif); `app_smbd` disamakan dengan `app_rsi` di schema `app` (logout dan ganti password); rumus `total_value` memakai `cancelled_qty`; proses login selalu memakai `app_rsi` |
-| 19/11/2026 | Kelompok 1 | v2 DRAF revisi 1: hak `app` untuk kedua login DB, penampil tabel dibatasi ke `garment`, metode bayar diseragamkan, `orders.level_code`, CK `spk.approved_at`, trigger hapus untuk tabel A, `total_value` dijelaskan, nama B diperbaiki |
-| 19/11/2026 | Kelompok 1 | v2 DRAF: database gabungan RSI + SMBD, 2 schema, 77 tabel, role SUPERADMIN, fitur tambahan RSI, `signed_documents` dihapus |
+| 14/11/2026 | Kelompok 1 | Versi awal, disusun dari TSD v1.1, FSD v2.0, SRS v2.0, dan Rencana Kerja 14 Hari |
+| 16/11/2026 | Kelompok 1 | Tambah Bagian 10.1: query tulis memakai `withTransaction()` + `sql.Transaction` (ikut pertemuan 9), query baca memakai Drizzle. Tambah `db/pool.ts` dan `utils/transaction.ts` di Bagian 7.1 |
