@@ -1,3 +1,5 @@
+import { produksiPaths, produksiSecuritySchemes, produksiTags } from './produksi.swagger';
+
 export const swaggerDocument = {
   openapi: '3.0.3',
   info: {
@@ -17,8 +19,11 @@ export const swaggerDocument = {
       name: 'System',
       description: 'Pemeriksaan kesehatan layanan dan koneksi database',
     },
+    ...produksiTags,
   ],
+  components: { securitySchemes: produksiSecuritySchemes },
   paths: {
+    ...produksiPaths,
     '/health': {
       get: {
         tags: ['System'],
