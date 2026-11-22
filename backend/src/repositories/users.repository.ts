@@ -255,7 +255,7 @@ export class UsersRepository extends BaseRepository<UserRecord> {
       .input('employee_id', sql.UniqueIdentifier, employeeId)
       .query<{ username: string; employee_id: string }>(`
         SELECT username, employee_id
-        FROM app.users
+        FROM app.users WITH (UPDLOCK, HOLDLOCK)
         WHERE username = @username OR employee_id = @employee_id
       `);
 

@@ -20,6 +20,7 @@ import type { AuthUser } from '../types/express';
 import { AppError } from '../utils/errors';
 import type { RequestMeta } from '../utils/request-meta';
 import type { PaginationMeta } from '../utils/response';
+import { sqlErrorNumber } from '../utils/sql-error';
 import { BaseService } from './base.service';
 
 const BCRYPT_ROUNDS = 10;
@@ -63,70 +64,95 @@ export class UsersService extends BaseService {
   ): Promise<UserRecord> {
     const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
 
-    const newUserId = await this.runInTransaction(async (tx) => {
-      const employeeActive = await this.repository.isEmployeeActive(
-        tx,
-        input.employee_id,
-      );
-      if (!employeeActive) {
-        throw new AppError(
-          422,
-          ERROR_CODE.VALIDATION_REQUIRED,
-          'Data karyawan tidak valid.',
-          [
-            {
-              field: 'employee_id',
-              message: 'Karyawan tidak ditemukan atau tidak aktif.',
-            },
-          ],
+    let newUserId: string;
+    try {
+      newUserId = await this.runInTransaction(async (tx) => {
+        const employeeActive = await this.repository.isEmployeeActive(
+          tx,
+          input.employee_id,
         );
-      }
+        if (!employeeActive) {
+          throw new AppError(
+            422,
+            ERROR_CODE.VALIDATION_REQUIRED,
+            'Data karyawan tidak valid.',
+            [
+              {
+                field: 'employee_id',
+                message: 'Karyawan tidak ditemukan atau tidak aktif.',
+              },
+            ],
+          );
+        }
 
-      const duplicate = await this.repository.existsByUsernameOrEmployee(
-        tx,
-        input.username,
-        input.employee_id,
-      );
-      if (duplicate.usernameExists) {
+        const duplicate = await this.repository.existsByUsernameOrEmployee(
+          tx,
+          input.username,
+          input.employee_id,
+        );
+        if (duplicate.usernameExists) {
+          throw new AppError(
+            409,
+            ERROR_CODE.VALIDATION_USERNAME_TAKEN,
+            ERROR_MESSAGE[ERROR_CODE.VALIDATION_USERNAME_TAKEN],
+            [
+              {
+                field: 'username',
+                message: ERROR_MESSAGE[ERROR_CODE.VALIDATION_USERNAME_TAKEN],
+              },
+            ],
+          );
+        }
+        if (duplicate.employeeExists) {
+          throw new AppError(
+            409,
+            ERROR_CODE.VALIDATION_USERNAME_TAKEN,
+            'Karyawan ini sudah memiliki akun.',
+            [
+              {
+                field: 'employee_id',
+                message: 'Karyawan ini sudah memiliki akun.',
+              },
+            ],
+          );
+        }
+
+        const createdId = await this.repository.create(tx, {
+          employee_id: input.employee_id,
+          username: input.username,
+          password_hash: passwordHash,
+          role_code: input.role_code,
+        });
+
+        await this.recordActivity(tx, {
+          user_id: actor.id,
+          username: actor.username,
+          action_type: ACTION_TYPE.TAMBAH,
+          resource_type: 'app.users',
+          resource_id: createdId,
+          new_values: {
+            employee_id: input.employee_id,
+            username: input.username,
+            role_code: input.role_code,
+            is_active: true,
+          },
+          device: meta.device,
+          ip_address: meta.ip_address,
+        });
+
+        return createdId;
+      });
+    } catch (error) {
+      const errNo = sqlErrorNumber(error);
+      if (errNo === 2601 || errNo === 2627) {
         throw new AppError(
           409,
           ERROR_CODE.VALIDATION_USERNAME_TAKEN,
           ERROR_MESSAGE[ERROR_CODE.VALIDATION_USERNAME_TAKEN],
         );
       }
-      if (duplicate.employeeExists) {
-        throw new AppError(
-          409,
-          ERROR_CODE.VALIDATION_USERNAME_TAKEN,
-          'Karyawan ini sudah memiliki akun.',
-        );
-      }
-
-      const createdId = await this.repository.create(tx, {
-        employee_id: input.employee_id,
-        username: input.username,
-        password_hash: passwordHash,
-        role_code: input.role_code,
-      });
-
-      await this.recordActivity(tx, {
-        user_id: actor.id,
-        username: actor.username,
-        action_type: ACTION_TYPE.TAMBAH,
-        resource_type: 'app.users',
-        resource_id: createdId,
-        new_values: {
-          employee_id: input.employee_id,
-          username: input.username,
-          role_code: input.role_code,
-          is_active: true,
-        },
-        device: meta.device,
-        ip_address: meta.ip_address,
-      });
-
-      return createdId;
-    });
+      throw error;
+    }
 
     const created = await this.repository.findById(newUserId);
     if (!created) {
@@ -167,7 +193,10 @@ export class UsersService extends BaseService {
         );
       }
 
-      if (targetUserId === actor.id && input.is_active === false) {
+      if (
+        targetUserId.toLowerCase() === actor.id.toLowerCase() &&
+        input.is_active === false
+      ) {
         throw new AppError(
           409,
           ERROR_CODE.USER_SELF_DEACTIVATE,

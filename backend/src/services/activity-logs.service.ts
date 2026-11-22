@@ -1,3 +1,4 @@
+import type { RoleCode } from '../constants';
 import {
   activityLogsRepository,
   type ActivityLogRecord,
@@ -16,6 +17,7 @@ export class ActivityLogsService extends BaseService {
 
   async listActivityLogs(
     query: ListActivityLogsQuery,
+    roleCode: RoleCode,
   ): Promise<{ items: ActivityLogRecord[]; meta: PaginationMeta }> {
     const { items, total } = await this.repository.findPaginated({
       page: query.page,
@@ -27,9 +29,11 @@ export class ActivityLogsService extends BaseService {
       date_to: query.date_to,
     });
 
+    const maskedItems = this.maskPriceFields(items, roleCode);
     const last_page = Math.max(1, Math.ceil(total / query.per_page));
+
     return {
-      items,
+      items: maskedItems,
       meta: {
         current_page: query.page,
         per_page: query.per_page,

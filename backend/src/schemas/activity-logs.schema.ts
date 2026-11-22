@@ -22,6 +22,17 @@ const ACTION_TYPE_VALUES = [
 
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
+function isValidCalendarDate(value: string): boolean {
+  if (!DATE_REGEX.test(value)) return false;
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
+
 export const listActivityLogsQuerySchema = z
   .object({
     page: z.coerce.number().int().min(1).default(1),
@@ -31,11 +42,17 @@ export const listActivityLogsQuerySchema = z
     resource_type: z.string().trim().max(40).optional(),
     date_from: z
       .string()
-      .regex(DATE_REGEX, 'Format tanggal awal harus YYYY-MM-DD.')
+      .refine(
+        isValidCalendarDate,
+        'Tanggal awal tidak valid (gunakan format YYYY-MM-DD).',
+      )
       .optional(),
     date_to: z
       .string()
-      .regex(DATE_REGEX, 'Format tanggal akhir harus YYYY-MM-DD.')
+      .refine(
+        isValidCalendarDate,
+        'Tanggal akhir tidak valid (gunakan format YYYY-MM-DD).',
+      )
       .optional(),
   })
   .refine(
