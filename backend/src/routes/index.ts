@@ -1,90 +1,58 @@
-import { adminSwaggerPaths, adminSwaggerTags } from './admin.swagger';
 import {
-  authSecuritySchemes,
-  authSwaggerPaths,
-  authSwaggerTags,
-} from './auth.swagger';
-import { orderSwaggerPaths, orderSwaggerTags } from './order.swagger';
-import {
-  produksiPaths,
-  produksiSecuritySchemes,
-  produksiTags,
-} from './produksi.swagger';
+  Router,
+  type NextFunction,
+  type Request,
+  type Response,
+} from 'express';
+import { getPool } from '../db/pool';
+import { sendSuccess } from '../utils/response';
+import activityLogsRoutes from './activity-logs.routes';
+import authRoutes from './auth.routes';
+import orderRoutes from './order.routes';
+import produksiRoutes from './produksi.routes';
+import usersRoutes from './users.routes';
 
-export const swaggerDocument = {
-  openapi: '3.0.3',
-  info: {
-    title: 'Project Solaris API',
-    version: '1.0.0',
-    description:
-      'Dokumentasi REST API Project Solaris (Database Gabungan RSI + SMBD).',
-  },
-  servers: [
-    {
-      url: '/api/v1',
-      description: 'API v1',
-    },
-  ],
-  tags: [
-    {
-      name: 'System',
-      description: 'Pemeriksaan kesehatan layanan dan koneksi database',
-    },
-    ...authSwaggerTags,
-    ...adminSwaggerTags,
-    ...orderSwaggerTags,
-    ...produksiTags,
-  ],
-  components: {
-    securitySchemes: {
-      ...authSecuritySchemes,
-      ...produksiSecuritySchemes,
-    },
-  },
-  paths: {
-    '/health': {
-      get: {
-        tags: ['System'],
-        summary: 'Cek kesehatan backend dan koneksi SQL Server',
-        responses: {
-          '200': {
-            description: 'Layanan dan database berjalan normal',
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  properties: {
-                    status: { type: 'string', example: 'success' },
-                    data: {
-                      type: 'object',
-                      properties: {
-                        service: { type: 'string', example: 'solaris-backend' },
-                        db_ok: { type: 'boolean', example: true },
-                        timestamp: {
-                          type: 'string',
-                          format: 'date-time',
-                        },
-                      },
-                    },
-                    message: {
-                      type: 'string',
-                      example: 'Layanan berjalan dengan baik.',
-                    },
-                  },
-                },
-              },
-            },
-          },
-          '503': {
-            description:
-              'Layanan sedang tidak tersedia. Silakan coba lagi. (ERR-SYS-01)',
-          },
+const router = Router();
+
+/**
+ * GET /api/v1/health
+ * Menguji koneksi SQL Server via getPool() dan mengembalikan status layanan.
+ */
+router.get(
+  '/health',
+  async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const pool = await getPool();
+      const result = await pool
+        .request()
+        .query<{ db_ok: number }>('SELECT 1 AS db_ok');
+
+      const dbOk = result.recordset[0]?.db_ok === 1;
+
+      sendSuccess(
+        res,
+        {
+          service: 'solaris-backend',
+          db_ok: dbOk,
+          timestamp: new Date().toISOString(),
         },
-      },
-    },
-    ...authSwaggerPaths,
-    ...adminSwaggerPaths,
-    ...orderSwaggerPaths,
-    ...produksiPaths,
+        'Layanan berjalan dengan baik.',
+      );
+    } catch (error) {
+      next(error);
+    }
   },
-};
+);
+
+// Router modul A (auth, users, activity-logs, dst.)
+router.use(authRoutes);
+router.use(usersRoutes);
+router.use(activityLogsRoutes);
+
+// Router modul B (buyers, product-types, items, order-levels, orders, dst.)
+router.use(orderRoutes);
+
+// Router modul C (suppliers, raw-materials, order-details, production-lines, spk, dst.)
+router.use(produksiRoutes);
+
+export default router;

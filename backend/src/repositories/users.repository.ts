@@ -23,6 +23,12 @@ export interface UserRecord {
   updated_at: Date;
 }
 
+export interface UserLockRecord {
+  id: string;
+  role_code: RoleCode;
+  is_active: boolean;
+}
+
 export interface AvailableEmployeeRecord {
   id: string;
   full_name: string;
@@ -84,6 +90,21 @@ export class UsersRepository extends BaseRepository<UserRecord> {
         JOIN app.roles r ON r.role_code = u.role_code
         JOIN garment.divisions d ON d.id = e.division_id
         JOIN garment.positions p ON p.id = e.position_id
+        WHERE u.id = @id
+      `);
+
+    return result.recordset[0] ?? null;
+  }
+
+  async findByIdForUpdate(
+    tx: sql.Transaction,
+    id: string,
+  ): Promise<UserLockRecord | null> {
+    const result = await new sql.Request(tx)
+      .input('id', sql.UniqueIdentifier, id)
+      .query<UserLockRecord>(`
+        SELECT u.id, u.role_code, u.is_active
+        FROM app.users u WITH (UPDLOCK)
         WHERE u.id = @id
       `);
 
@@ -289,14 +310,15 @@ export class UsersRepository extends BaseRepository<UserRecord> {
   ): Promise<void> {
     await new sql.Request(tx)
       .input('user_id', sql.UniqueIdentifier, userId)
-      .input('status', sql.VarChar(10), SESSION_STATUS.BERAKHIR)
+      .input('active_status', sql.VarChar(10), SESSION_STATUS.AKTIF)
+      .input('ended_status', sql.VarChar(10), SESSION_STATUS.BERAKHIR)
       .input('end_reason', sql.VarChar(20), SESSION_END_REASON.AKUN_NONAKTIF)
       .query(`
         UPDATE app.sessions
-        SET status = @status,
+        SET status = @ended_status,
             end_reason = @end_reason,
             ended_at = SYSDATETIME()
-        WHERE user_id = @user_id AND status = 'AKTIF'
+        WHERE user_id = @user_id AND status = @active_status
       `);
   }
 }

@@ -90,14 +90,14 @@ export class UsersService extends BaseService {
       if (duplicate.usernameExists) {
         throw new AppError(
           409,
-          ERROR_CODE.USER_DUPLICATE,
-          'Username sudah digunakan.',
+          ERROR_CODE.VALIDATION_USERNAME_TAKEN,
+          ERROR_MESSAGE[ERROR_CODE.VALIDATION_USERNAME_TAKEN],
         );
       }
       if (duplicate.employeeExists) {
         throw new AppError(
           409,
-          ERROR_CODE.USER_DUPLICATE,
+          ERROR_CODE.VALIDATION_USERNAME_TAKEN,
           'Karyawan ini sudah memiliki akun.',
         );
       }
@@ -146,31 +146,38 @@ export class UsersService extends BaseService {
     actor: AuthUser,
     meta: RequestMeta,
   ): Promise<UserRecord> {
-    const existing = await this.repository.findById(targetUserId);
-    if (!existing) {
-      throw new AppError(404, ERROR_CODE.SYS_INTERNAL, 'Data tidak ditemukan.');
-    }
-
-    if (existing.role_code === ROLE.SUPERADMIN) {
-      throw new AppError(
-        403,
-        ERROR_CODE.AUTH_FORBIDDEN,
-        ERROR_MESSAGE[ERROR_CODE.AUTH_FORBIDDEN],
-      );
-    }
-
-    if (targetUserId === actor.id && input.is_active === false) {
-      throw new AppError(
-        409,
-        ERROR_CODE.USER_DUPLICATE,
-        'Anda tidak dapat menonaktifkan akun sendiri.',
-      );
-    }
-
-    const nextRole = input.role_code ?? existing.role_code;
-    const nextActive = input.is_active ?? existing.is_active;
-
     await this.runInTransaction(async (tx) => {
+      const existing = await this.repository.findByIdForUpdate(
+        tx,
+        targetUserId,
+      );
+      if (!existing) {
+        throw new AppError(
+          404,
+          ERROR_CODE.SYS_INTERNAL,
+          'Data tidak ditemukan.',
+        );
+      }
+
+      if (existing.role_code === ROLE.SUPERADMIN) {
+        throw new AppError(
+          403,
+          ERROR_CODE.AUTH_FORBIDDEN,
+          ERROR_MESSAGE[ERROR_CODE.AUTH_FORBIDDEN],
+        );
+      }
+
+      if (targetUserId === actor.id && input.is_active === false) {
+        throw new AppError(
+          409,
+          ERROR_CODE.USER_SELF_DEACTIVATE,
+          ERROR_MESSAGE[ERROR_CODE.USER_SELF_DEACTIVATE],
+        );
+      }
+
+      const nextRole = input.role_code ?? existing.role_code;
+      const nextActive = input.is_active ?? existing.is_active;
+
       await this.repository.update(tx, {
         id: targetUserId,
         role_code: nextRole,
