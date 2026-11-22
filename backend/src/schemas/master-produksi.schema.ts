@@ -1,13 +1,15 @@
 import { z } from 'zod';
 
+const INVALID_ID = 'Format ID tidak valid.';
+
 export const listRawMaterialsQuery = z.object({
   search: z.string().trim().max(100).optional(),
-  category_id: z.string().uuid().optional(),
+  category_id: z.string().uuid(INVALID_ID).optional(),
 });
 
 export const listProductionLinesQuery = z.object({
   /** Bila diisi, hanya lini di pabrik order style ini (dipakai form SPK). */
-  order_detail_id: z.string().uuid().optional(),
+  order_detail_id: z.string().uuid(INVALID_ID).optional(),
 });
 
 export const listQcStandardsQuery = z.object({
