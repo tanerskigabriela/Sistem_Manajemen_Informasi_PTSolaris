@@ -1,3 +1,4 @@
+import { adminSwaggerPaths, adminSwaggerTags } from './admin.swagger';
 import {
   authSecuritySchemes,
   authSwaggerPaths,
@@ -30,6 +31,7 @@ export const swaggerDocument = {
       description: 'Pemeriksaan kesehatan layanan dan koneksi database',
     },
     ...authSwaggerTags,
+    ...adminSwaggerTags,
     ...orderSwaggerTags,
     ...produksiTags,
   ],
@@ -81,6 +83,7 @@ export const swaggerDocument = {
       },
     },
     ...authSwaggerPaths,
+    ...adminSwaggerPaths,
     ...orderSwaggerPaths,
     ...produksiPaths,
   },
