@@ -1,6 +1,6 @@
 import { AppError, type FieldError } from "../utils/errors";
 
-// Kode dan pesan error modul B, disalin persis dari FSD Bagian 6.
+// Kode dan pesan error, disalin dari FSD Bagian 6.
 export const MSG = {
   REQUIRED: "Kolom ini wajib diisi.",
   POSITIVE: "Nilai harus lebih dari 0.",
@@ -64,6 +64,90 @@ export function createOrderError(result: string): AppError {
             "Ukuran dan jumlah setiap style wajib diisi, jumlah harus lebih dari 0.",
         },
       ]);
+    default:
+      return new AppError(
+        500,
+        "ERR-SYS-02",
+        "Terjadi kesalahan pada sistem. Silakan coba lagi.",
+      );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// persetujuan, penolakan, penarikan, dan pembatalan order
+// ---------------------------------------------------------------------------
+export const STATUS_MSG = {
+  REASON_REQUIRED: "Alasan wajib diisi.",
+  ORDER_DECIDED: "Order ini sudah diputuskan sebelumnya.",
+  NOT_CANCELLABLE:
+    "Order hanya dapat dibatalkan bila berstatus Disetujui atau Dalam Produksi.",
+  NOT_WITHDRAWABLE:
+    "Pengajuan tidak dapat ditarik karena order sudah diputuskan.",
+  ORDER_FINAL: "Order ini bersifat final dan hanya dapat dilihat.",
+  NO_POLICY: "Kebijakan pembatalan untuk order ini belum tersedia.",
+} as const;
+
+export const reasonRequired = () =>
+  new AppError(422, "ERR-VAL-06", STATUS_MSG.REASON_REQUIRED, [
+    { field: "reason", message: STATUS_MSG.REASON_REQUIRED },
+  ]);
+
+// Order DITOLAK/DITARIK bersifat final (ERR-ORD-05), selain itu pakai kode khusus aksinya
+const isFinal = (status: string | null) =>
+  status === "DITOLAK" || status === "DITARIK";
+const finalError = () =>
+  new AppError(409, "ERR-ORD-05", STATUS_MSG.ORDER_FINAL);
+
+// Nilai @result sp_change_order_status selain SUCCESS -> AppError
+export function changeStatusError(
+  result: string,
+  currentStatus: string | null,
+): AppError {
+  switch (result) {
+    case "REASON_REQUIRED":
+      return reasonRequired();
+    case "NOT_FOUND":
+      return notFound();
+    case "ALREADY_DECIDED":
+      return isFinal(currentStatus)
+        ? finalError()
+        : new AppError(409, "ERR-ORD-02", STATUS_MSG.ORDER_DECIDED);
+    case "NOT_WITHDRAWABLE":
+      return isFinal(currentStatus)
+        ? finalError()
+        : new AppError(409, "ERR-ORD-04", STATUS_MSG.NOT_WITHDRAWABLE);
+    default:
+      return new AppError(
+        500,
+        "ERR-SYS-02",
+        "Terjadi kesalahan pada sistem. Silakan coba lagi.",
+      );
+  }
+}
+
+// Nilai @result sp_cancel_order selain SUCCESS -> AppError
+export function cancelOrderError(
+  result: string,
+  currentStatus: string | null,
+): AppError {
+  switch (result) {
+    case "REASON_REQUIRED":
+      return reasonRequired();
+    case "INVALID":
+      return fieldError([
+        {
+          field: "requested_by_party",
+          message: "Pilih BUYER atau PERUSAHAAN.",
+        },
+      ]);
+    case "NOT_FOUND":
+      return notFound();
+    case "NOT_CANCELLABLE":
+      return isFinal(currentStatus)
+        ? finalError()
+        : new AppError(409, "ERR-ORD-03", STATUS_MSG.NOT_CANCELLABLE);
+    case "NO_POLICY":
+      return new AppError(409, "ERR-BTL-01", STATUS_MSG.NO_POLICY);
     default:
       return new AppError(
         500,

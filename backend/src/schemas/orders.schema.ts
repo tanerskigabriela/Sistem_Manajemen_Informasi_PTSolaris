@@ -147,3 +147,25 @@ export const listItemsQuery = z.object({
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 export type ListOrdersQuery = z.infer<typeof listOrdersQuery>;
 export type ListItemsQuery = z.infer<typeof listItemsQuery>;
+
+// ---------------------------------------------------------------------------
+// tolak, tarik, batal. Alasan kosong dicek di service supaya keluar ERR-VAL-06.
+// ---------------------------------------------------------------------------
+const reasonField = z
+  .string()
+  .trim()
+  .max(500, "Maksimal 500 karakter.")
+  .optional()
+  .default("");
+
+export const reasonSchema = z.object({ reason: reasonField });
+
+export const cancelOrderSchema = z.object({
+  reason: reasonField,
+  requested_by_party: z.enum(["BUYER", "PERUSAHAAN"], {
+    errorMap: () => ({ message: "Pilih BUYER atau PERUSAHAAN." }),
+  }),
+});
+
+export type ReasonInput = z.infer<typeof reasonSchema>;
+export type CancelOrderInput = z.infer<typeof cancelOrderSchema>;

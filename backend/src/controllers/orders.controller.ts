@@ -1,5 +1,4 @@
 import type { NextFunction, Request, Response } from "express";
-import { ROLE } from "../constants";
 import type { ListOrdersQuery } from "../schemas/orders.schema";
 import { OrderService } from "../services/orders.service";
 import { getActor, getRequestMeta } from "../utils/order-actor";
@@ -13,8 +12,11 @@ export async function createOrder(
   next: NextFunction,
 ) {
   try {
-    const actor = await getActor(req, ROLE.MARKETING);
-    const data = await service.create(req.body, actor, getRequestMeta(req));
+    const data = await service.create(
+      req.body,
+      getActor(req),
+      getRequestMeta(req),
+    );
     sendSuccess(res, data, "Order berhasil disimpan.", undefined, 201);
   } catch (error) {
     next(error);
@@ -27,7 +29,7 @@ export async function listOrders(
   next: NextFunction,
 ) {
   try {
-    const actor = await getActor(req, ROLE.MARKETING);
+    const actor = getActor(req);
     const { rows, meta } = await service.list(
       req.query as unknown as ListOrdersQuery,
       actor.role_code,
@@ -44,7 +46,7 @@ export async function getOrder(
   next: NextFunction,
 ) {
   try {
-    const actor = await getActor(req, ROLE.MARKETING);
+    const actor = getActor(req);
     sendSuccess(res, await service.getById(req.params.id, actor.role_code));
   } catch (error) {
     next(error);

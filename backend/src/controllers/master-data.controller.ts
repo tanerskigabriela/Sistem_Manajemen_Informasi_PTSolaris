@@ -1,5 +1,4 @@
 import type { NextFunction, Request, Response } from "express";
-import { ROLE } from "../constants";
 import type { ListItemsQuery } from "../schemas/orders.schema";
 import { MasterDataService } from "../services/master-data.service";
 import { getActor } from "../utils/order-actor";
@@ -49,7 +48,7 @@ export async function listItems(
   next: NextFunction,
 ) {
   try {
-    const actor = await getActor(req, ROLE.MARKETING);
+    const actor = getActor(req);
     sendSuccess(
       res,
       await service.listItems(req.query as ListItemsQuery, actor.role_code),
