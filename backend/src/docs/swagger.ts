@@ -1,72 +1,87 @@
-import { orderSwaggerPaths, orderSwaggerTags } from "./order.swagger";
-
-import { produksiPaths, produksiSecuritySchemes, produksiTags } from './produksi.swagger';
+import {
+  authSecuritySchemes,
+  authSwaggerPaths,
+  authSwaggerTags,
+} from './auth.swagger';
+import { orderSwaggerPaths, orderSwaggerTags } from './order.swagger';
+import {
+  produksiPaths,
+  produksiSecuritySchemes,
+  produksiTags,
+} from './produksi.swagger';
 
 export const swaggerDocument = {
-  openapi: "3.0.3",
+  openapi: '3.0.3',
   info: {
-    title: "Project Solaris API",
-    version: "1.0.0",
+    title: 'Project Solaris API',
+    version: '1.0.0',
     description:
-      "Dokumentasi REST API Project Solaris (Database Gabungan RSI + SMBD).",
+      'Dokumentasi REST API Project Solaris (Database Gabungan RSI + SMBD).',
   },
   servers: [
     {
-      url: "/api/v1",
-      description: "API v1",
+      url: '/api/v1',
+      description: 'API v1',
     },
   ],
   tags: [
     {
-      name: "System",
-      description: "Pemeriksaan kesehatan layanan dan koneksi database",
+      name: 'System',
+      description: 'Pemeriksaan kesehatan layanan dan koneksi database',
     },
+    ...authSwaggerTags,
     ...orderSwaggerTags,
     ...produksiTags,
   ],
-  components: { securitySchemes: produksiSecuritySchemes },
+  components: {
+    securitySchemes: {
+      ...authSecuritySchemes,
+      ...produksiSecuritySchemes,
+    },
+  },
   paths: {
-    ...produksiPaths,
-    "/health": {
+    '/health': {
       get: {
-        tags: ["System"],
-        summary: "Cek kesehatan backend dan koneksi SQL Server",
+        tags: ['System'],
+        summary: 'Cek kesehatan backend dan koneksi SQL Server',
         responses: {
-          "200": {
-            description: "Layanan dan database berjalan normal",
+          '200': {
+            description: 'Layanan dan database berjalan normal',
             content: {
-              "application/json": {
+              'application/json': {
                 schema: {
-                  type: "object",
+                  type: 'object',
                   properties: {
-                    status: { type: "string", example: "success" },
+                    status: { type: 'string', example: 'success' },
                     data: {
-                      type: "object",
+                      type: 'object',
                       properties: {
-                        service: { type: "string", example: "solaris-backend" },
-                        db_ok: { type: "boolean", example: true },
+                        service: { type: 'string', example: 'solaris-backend' },
+                        db_ok: { type: 'boolean', example: true },
                         timestamp: {
-                          type: "string",
-                          format: "date-time",
+                          type: 'string',
+                          format: 'date-time',
                         },
                       },
                     },
                     message: {
-                      type: "string",
-                      example: "Layanan berjalan dengan baik.",
+                      type: 'string',
+                      example: 'Layanan berjalan dengan baik.',
                     },
                   },
                 },
               },
             },
           },
-          "503": {
+          '503': {
             description:
-              "Layanan sedang tidak tersedia. Silakan coba lagi. (ERR-SYS-01)",
+              'Layanan sedang tidak tersedia. Silakan coba lagi. (ERR-SYS-01)',
           },
         },
       },
     },
+    ...authSwaggerPaths,
     ...orderSwaggerPaths,
+    ...produksiPaths,
   },
 };
