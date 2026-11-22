@@ -61,15 +61,17 @@ export class OrderStatusRepository extends BaseRepository<OrderStatusRow> {
     return result.recordset[0] ?? null;
   }
 
-  // Dibaca di dalam transaksi yang sama setelah SP menolak, untuk memilih kode error
+  // Dibaca di dalam transaksi. lock=true mengunci baris order sampai transaksi selesai.
   async findStatus(
     tx: sql.Transaction,
     id: string,
+    lock = false,
   ): Promise<OrderStatusRow | null> {
+    const hint = lock ? "WITH (UPDLOCK, ROWLOCK)" : "";
     const result = await new sql.Request(tx)
       .input("id", sql.UniqueIdentifier, id)
       .query<OrderStatusRow>(
-        "SELECT id, order_code, status FROM garment.orders WHERE id = @id",
+        `SELECT id, order_code, status FROM garment.orders ${hint} WHERE id = @id`,
       );
     return result.recordset[0] ?? null;
   }

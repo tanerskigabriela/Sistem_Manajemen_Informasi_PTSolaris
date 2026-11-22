@@ -1,3 +1,4 @@
+import { ORDER_STATUS } from "../constants";
 import { AppError, type FieldError } from "../utils/errors";
 
 // Kode dan pesan error, disalin dari FSD Bagian 6.
@@ -93,8 +94,8 @@ export const reasonRequired = () =>
   ]);
 
 // Order DITOLAK/DITARIK bersifat final (ERR-ORD-05), selain itu pakai kode khusus aksinya
-const isFinal = (status: string | null) =>
-  status === "DITOLAK" || status === "DITARIK";
+export const isFinal = (status: string | null) =>
+  status === ORDER_STATUS.DITOLAK || status === ORDER_STATUS.DITARIK;
 const finalError = () =>
   new AppError(409, "ERR-ORD-05", STATUS_MSG.ORDER_FINAL);
 

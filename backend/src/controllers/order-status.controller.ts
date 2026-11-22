@@ -17,11 +17,14 @@ const SUCCESS_MESSAGE: Record<StatusAction, string> = {
 function statusHandler(action: StatusAction) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { reason } = (req.body ?? {}) as Partial<ReasonInput>;
+      // Approve tidak memakai alasan, jadi body-nya tidak dibaca sama sekali.
+      // Reject/withdraw: body sudah divalidasi reasonSchema di route, jadi reason pasti string.
+      const reason =
+        action === "APPROVE" ? "" : (req.body as ReasonInput).reason;
       const data = await service.changeStatus(
         req.params.id,
         action,
-        reason ?? "",
+        reason,
         getActor(req),
         getRequestMeta(req),
       );

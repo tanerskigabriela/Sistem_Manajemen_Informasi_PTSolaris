@@ -42,7 +42,7 @@ import {
 } from "../schemas/orders.schema";
 
 // Router modul B. Urutan tiap route: authenticate -> authorize(...) -> validate -> controller.
-// Role mengikuti KONTRAK v1 Bagian 10 dan KONTRAK v2 Bagian 14.3.
+// Role mengikuti KONTRAK v1 Bagian 13 dan KONTRAK v2 Bagian 14.3.
 const { MARKETING, PIMPINAN, PPIC, SPV, QC } = ROLE;
 const router = Router();
 
