@@ -1,5 +1,4 @@
 import type { NextFunction, Request, Response } from "express";
-import { ROLE } from "../constants";
 import type { ListBuyersQuery } from "../schemas/buyers.schema";
 import { BuyerService } from "../services/buyers.service";
 import { getActor, getRequestMeta } from "../utils/order-actor";
@@ -40,8 +39,11 @@ export async function createBuyer(
   next: NextFunction,
 ) {
   try {
-    const actor = await getActor(req, ROLE.MARKETING);
-    const data = await service.create(req.body, actor, getRequestMeta(req));
+    const data = await service.create(
+      req.body,
+      getActor(req),
+      getRequestMeta(req),
+    );
     sendSuccess(res, data, "Buyer berhasil disimpan.", undefined, 201);
   } catch (error) {
     next(error);
@@ -54,11 +56,10 @@ export async function updateBuyer(
   next: NextFunction,
 ) {
   try {
-    const actor = await getActor(req, ROLE.MARKETING);
     const data = await service.update(
       req.params.id,
       req.body,
-      actor,
+      getActor(req),
       getRequestMeta(req),
     );
     sendSuccess(res, data, "Buyer berhasil diubah.");

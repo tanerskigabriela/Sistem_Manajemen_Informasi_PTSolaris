@@ -227,4 +227,68 @@ export const orderSwaggerPaths = {
       responses: ok,
     },
   },
+  "/orders/{id}/approve": {
+    post: {
+      tags: ["Order"],
+      summary: "Setujui order (PIMPINAN)",
+      parameters: idParam,
+      responses: {
+        "200": { description: "Status menjadi DISETUJUI" },
+        "409": { description: "ERR-ORD-02 / ERR-ORD-05" },
+      },
+    },
+  },
+  "/orders/{id}/reject": {
+    post: {
+      tags: ["Order"],
+      summary: "Tolak order, alasan wajib (PIMPINAN)",
+      parameters: idParam,
+      requestBody: body({ reason: "Harga di bawah biaya produksi." }),
+      responses: {
+        "200": { description: "Status menjadi DITOLAK" },
+        "409": { description: "ERR-ORD-02 / ERR-ORD-05" },
+        "422": { description: "ERR-VAL-06" },
+      },
+    },
+  },
+  "/orders/{id}/withdraw": {
+    post: {
+      tags: ["Order"],
+      summary: "Tarik pengajuan order, alasan wajib (MARKETING)",
+      parameters: idParam,
+      requestBody: body({ reason: "Buyer merevisi jumlah pesanan." }),
+      responses: {
+        "200": { description: "Status menjadi DITARIK" },
+        "409": { description: "ERR-ORD-04 / ERR-ORD-05" },
+        "422": { description: "ERR-VAL-06" },
+      },
+    },
+  },
+  "/orders/{id}/cancellation-preview": {
+    get: {
+      tags: ["Order"],
+      summary: "Perkiraan denda dan refund sebelum membatalkan (PIMPINAN)",
+      parameters: idParam,
+      responses: ok,
+    },
+  },
+  "/orders/{id}/cancel": {
+    post: {
+      tags: ["Order"],
+      summary: "Batalkan order DISETUJUI/DALAM_PRODUKSI (PIMPINAN)",
+      parameters: idParam,
+      requestBody: body({
+        reason: "Buyer menghentikan kerja sama.",
+        requested_by_party: "BUYER",
+      }),
+      responses: {
+        "200": {
+          description:
+            "Status menjadi DIBATALKAN, berisi penalty_amount dan refund_amount",
+        },
+        "409": { description: "ERR-ORD-03 / ERR-ORD-05 / ERR-BTL-01" },
+        "422": { description: "ERR-VAL-06" },
+      },
+    },
+  },
 };
