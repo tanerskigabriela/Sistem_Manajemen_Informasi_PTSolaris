@@ -6,7 +6,9 @@ import {
 } from 'express';
 import { getPool } from '../db/pool';
 import { sendSuccess } from '../utils/response';
-import orderRoutes from "./order.routes";
+import authRoutes from './auth.routes';
+import orderRoutes from './order.routes';
+import produksiRoutes from './produksi.routes';
 
 const router = Router();
 
@@ -40,12 +42,13 @@ router.get(
   },
 );
 
-// Router modul A (auth, users, sessions, password-reset-requests, activity-logs, notifications)
-// Router modul B (buyers, product-types, items, order-levels, orders, price-history, dashboard, reports, expeditions, shipments)
-router.use(orderRoutes);
-// Router modul C (suppliers, raw-materials, order-details, production-lines, spk, progress, qc-standards, defect-types, qc-results)
+// Router modul A (auth, users, activity-logs, dst.)
+router.use(authRoutes);
 
-import produksiRoutes from './produksi.routes';
+// Router modul B (buyers, product-types, items, order-levels, orders, dst.)
+router.use(orderRoutes);
+
+// Router modul C (suppliers, raw-materials, order-details, production-lines, spk, dst.)
 router.use(produksiRoutes);
 
 export default router;
