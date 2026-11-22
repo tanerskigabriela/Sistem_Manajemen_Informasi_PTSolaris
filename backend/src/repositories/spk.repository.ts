@@ -37,6 +37,15 @@ export interface SpkStageRow {
   remaining: number;
 }
 
+export interface SpkContext {
+  spk_id: string;
+  spk_status: string;
+  order_detail_id: string;
+  order_status: string;
+  reject_limit_pct: number;
+  total_qty: number;
+}
+
 export interface SubmitSpkSpResult {
   result: string;
   spk_id: string | null;
@@ -127,7 +136,12 @@ export class SpkRepository extends BaseRepository<SpkListRow> {
     return result.recordset;
   }
 
-  /** Kumulatif per tahap + sisa pekerjaan (RB-37, RB-39). PACKING tidak punya QC (RB-41). */
+  /**
+   * Kumulatif per tahap (RB-37, RB-39, RB-41).
+   * remaining  = jumlah SPK - kumulatif selesai (RB-39)
+   * max_allowed = batas kumulatif dari lolos QC tahap sebelumnya (RB-37)
+   * PACKING tidak punya QC, jadi cumulative_passed NULL.
+   */
   async findStages(id: string): Promise<SpkStageRow[]> {
     const pool = await this.getPool();
     const result = await pool
@@ -136,8 +150,8 @@ export class SpkRepository extends BaseRepository<SpkListRow> {
       .query<SpkStageRow>(
         `SELECT x.stage_code, x.stage_name, x.[sequence], x.cumulative_done, x.cumulative_passed,
                 x.max_allowed,
-                CASE WHEN x.max_allowed > x.cumulative_done
-                     THEN x.max_allowed - x.cumulative_done ELSE 0 END AS remaining
+                CASE WHEN x.total_qty > x.cumulative_done
+                     THEN x.total_qty - x.cumulative_done ELSE 0 END AS remaining
          FROM (
            SELECT ps.stage_code, ps.stage_name, ps.[sequence],
                   ISNULL((SELECT SUM(p.qty_done) FROM garment.production_progress p
@@ -147,7 +161,8 @@ export class SpkRepository extends BaseRepository<SpkListRow> {
                                     WHERE q.spk_id = @id AND q.stage_code = ps.stage_code
                                       AND q.inspection_type IN ('INLINE','FINAL')), 0)
                   END AS cumulative_passed,
-                  garment.fn_stage_max_allowed(@id, ps.stage_code) AS max_allowed
+                  garment.fn_stage_max_allowed(@id, ps.stage_code) AS max_allowed,
+                  (SELECT SUM(qty) FROM garment.spk_sizes WHERE spk_id = @id) AS total_qty
            FROM garment.production_stages ps
          ) x
          ORDER BY x.[sequence]`,
@@ -165,6 +180,34 @@ export class SpkRepository extends BaseRepository<SpkListRow> {
          WHERE s.id = @id`,
       );
     return result.recordset[0]?.status ?? null;
+  }
+
+  /**
+   * Data SPK yang dibutuhkan pencatatan progres dan QC, dikunci (UPDLOCK) di dalam transaksi
+   * supaya dua pencatatan bersamaan tidak melewati batas kumulatif.
+   */
+  async findContext(tx: sql.Transaction, spkId: string): Promise<SpkContext | null> {
+    const result = await new sql.Request(tx)
+      .input('id', sql.UniqueIdentifier, spkId)
+      .query<SpkContext>(
+        `SELECT s.id AS spk_id, s.status AS spk_status, s.order_detail_id,
+                o.status AS order_status, o.reject_limit_pct,
+                (SELECT SUM(z.qty) FROM garment.spk_sizes z WHERE z.spk_id = s.id) AS total_qty
+         FROM garment.spk s WITH (UPDLOCK, ROWLOCK)
+         JOIN garment.order_details d ON d.id = s.order_detail_id
+         JOIN garment.orders o        ON o.id = d.order_id
+         WHERE s.id = @id`,
+      );
+    return result.recordset[0] ?? null;
+  }
+
+  /** Tandai ulang style (berisiko terlambat / melebihi batas reject) + notifikasi N-07/N-08. */
+  async evaluateFlags(tx: sql.Transaction, orderDetailId: string): Promise<number> {
+    const r = await new sql.Request(tx)
+      .input('order_detail_id', sql.UniqueIdentifier, orderDetailId)
+      .output('changed', sql.Int)
+      .execute('garment.sp_evaluate_flags');
+    return (r.output.changed as number) ?? 0;
   }
 
   /** garment.sp_submit_spk di dalam transaksi service (SP tidak membuka transaksi sendiri). */

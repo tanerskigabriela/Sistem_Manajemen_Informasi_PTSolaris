@@ -2,13 +2,13 @@
  * Dokumentasi Swagger modul C (produksi).
  * Digabung ke swaggerDocument di docs/swagger.ts.
  *
- * SEMENTARA (sampai login A selesai): klik tombol "Authorize" di Swagger,
- * isi devUser dengan username seed: ppic | pimpinan | supervisor | qc.solaris.
+ * Login dulu lewat POST /auth/login (cookie `token` otomatis tersimpan di browser),
+ * lalu endpoint di bawah bisa langsung dicoba sesuai role akun.
  */
 
 const uuid = { type: 'string', format: 'uuid' };
 const date = { type: 'string', format: 'date', example: '2026-12-20' };
-const security = [{ devUser: [] }];
+const security = [{ cookieAuth: [] }];
 
 const idParam = (description: string) => ({
   name: 'id',
@@ -82,17 +82,17 @@ export const produksiTags = [
   { name: 'C - Data master', description: 'Dropdown bahan, lini, jenis cacat, standar QC' },
   { name: 'C - Bahan baku style', description: 'Catat dan ubah bahan per style (FSD-2.9)' },
   { name: 'C - SPK', description: 'Buat, daftar, detail, setujui, tolak SPK (FSD-2.10, 2.11)' },
+  { name: 'C - Progres', description: 'Progres harian per SPK dan tahap (FSD-2.12)' },
+  { name: 'C - Hasil QC', description: 'Hasil QC per SPK dan tahap, standar, sampel, jenis cacat (FSD-2.13)' },
 ];
 
-export const produksiSecuritySchemes = {
-  devUser: {
-    type: 'apiKey',
-    in: 'header',
-    name: 'x-dev-user',
-    description:
-      'SEMENTARA sampai login A selesai. Isi username seed: ppic, pimpinan, supervisor, qc.solaris.',
-  },
+const stageEnum = {
+  type: 'string',
+  enum: ['CUTTING', 'SEWING', 'TRIMMING', 'FINISHING', 'IRONING', 'PACKING'],
 };
+
+/** Modul C memakai cookieAuth milik A (auth.swagger.ts); tidak ada skema tambahan. */
+export const produksiSecuritySchemes = {};
 
 export const produksiPaths = {
   '/suppliers': {
@@ -315,6 +315,107 @@ export const produksiPaths = {
         '404': 'ERR-SYS-02 SPK tidak ditemukan.',
         '409': 'ERR-SPK-04 | ERR-ORD-05',
         '422': 'ERR-VAL-06 Alasan wajib diisi.',
+      }),
+    },
+  },
+
+  '/spk/{id}/progress': {
+    get: {
+      tags: ['C - Progres'],
+      summary: 'Progres SPK + sisa pekerjaan per tahap (SPV, PPIC, PIMPINAN, QC)',
+      security,
+      parameters: [idParam('id SPK')],
+      responses: responses('stages (kumulatif, sisa, maksimum) dan entries (data harian)', {
+        '404': 'ERR-SYS-02 SPK tidak ditemukan.',
+      }),
+    },
+    post: {
+      tags: ['C - Progres'],
+      summary: 'Catat progres harian (SPV)',
+      security,
+      parameters: [idParam('id SPK')],
+      requestBody: jsonBody({
+        type: 'object',
+        properties: {
+          stage_code: { ...stageEnum, example: 'CUTTING' },
+          work_date: { ...date, example: '2026-11-22' },
+          qty_done: { type: 'integer', example: 500 },
+          variance_note: {
+            type: 'string',
+            nullable: true,
+            description: 'Wajib bila kumulatif Cutting berbeda dari jumlah SPK',
+          },
+        },
+      }),
+      responses: created('Progres berhasil disimpan. Mengembalikan cumulative_done dan remaining', {
+        '404': 'ERR-SYS-02 SPK tidak ditemukan.',
+        '409': 'ERR-PRG-01 SPK belum disetujui/order dibatalkan | ERR-PRG-02 Data tanggal ini sudah ada',
+        '422': 'ERR-PRG-03 Melebihi lolos QC tahap sebelumnya | ERR-PRG-04 Keterangan selisih Cutting | ERR-VAL-09 Negatif',
+      }),
+    },
+  },
+  '/progress/{id}': {
+    patch: {
+      tags: ['C - Progres'],
+      summary: 'Ubah data progres lama (SPV)',
+      security,
+      parameters: [idParam('id production_progress')],
+      requestBody: jsonBody({
+        type: 'object',
+        properties: {
+          qty_done: { type: 'integer', example: 450 },
+          variance_note: { type: 'string', nullable: true },
+        },
+      }),
+      responses: responses('Progres berhasil diubah.', {
+        '404': 'ERR-SYS-02 Data progres tidak ditemukan.',
+        '409': 'ERR-PRG-01',
+        '422': 'ERR-PRG-03 | ERR-PRG-04 | ERR-QC-01 di bawah lolos QC | ERR-VAL-09',
+      }),
+    },
+  },
+
+  '/spk/{id}/qc-results': {
+    get: {
+      tags: ['C - Hasil QC'],
+      summary: 'Hasil QC SPK + tidak lolos per tahap dan per style (QC, PPIC, PIMPINAN)',
+      security,
+      parameters: [idParam('id SPK')],
+      responses: responses('stages (selesai, lolos, tidak lolos, %), style (reject_pct vs batas), entries', {
+        '404': 'ERR-SYS-02 SPK tidak ditemukan.',
+      }),
+    },
+    post: {
+      tags: ['C - Hasil QC'],
+      summary: 'Catat hasil QC (QC)',
+      security,
+      parameters: [idParam('id SPK')],
+      requestBody: jsonBody({
+        type: 'object',
+        properties: {
+          stage_code: { ...stageEnum, example: 'CUTTING', description: 'PACKING ditolak (ERR-QC-02)' },
+          check_date: { ...date, example: '2026-11-22' },
+          qty_passed: { type: 'integer', example: 490 },
+          standard_id: { ...uuid, description: 'id dari GET /qc-standards' },
+          sample_qty: { type: 'integer', nullable: true, example: 80 },
+          inspection_type: { type: 'string', enum: ['INLINE', 'FINAL'], default: 'INLINE' },
+          defects: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                defect_type_id: { ...uuid, description: 'id dari GET /defect-types' },
+                qty: { type: 'integer', example: 10 },
+                action_taken: { type: 'string', nullable: true, example: 'Dipotong ulang' },
+              },
+            },
+          },
+        },
+      }),
+      responses: created('Hasil QC berhasil disimpan. Mengembalikan tidak lolos, % dan status batas reject', {
+        '404': 'ERR-SYS-02 SPK tidak ditemukan.',
+        '409': 'ERR-PRG-01 SPK belum disetujui/order dibatalkan',
+        '422': 'ERR-QC-01 Lolos > selesai | ERR-QC-02 Packing | ERR-VAL-09 | ERR-VAL-02 sampel/cacat',
       }),
     },
   },
