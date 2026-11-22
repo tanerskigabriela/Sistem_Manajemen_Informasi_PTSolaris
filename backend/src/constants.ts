@@ -56,7 +56,8 @@ export const SESSION_STATUS = {
   BERAKHIR: 'BERAKHIR',
 } as const;
 
-export type SessionStatus = (typeof SESSION_STATUS)[keyof typeof SESSION_STATUS];
+export type SessionStatus =
+  (typeof SESSION_STATUS)[keyof typeof SESSION_STATUS];
 
 export const SESSION_END_REASON = {
   LOGOUT: 'LOGOUT',
@@ -111,36 +112,43 @@ export const CANCELLATION_STATUS = {
   DITOLAK: 'DITOLAK',
 } as const;
 
+export type CancellationStatus =
+  (typeof CANCELLATION_STATUS)[keyof typeof CANCELLATION_STATUS];
+
 export const SHIPMENT_STATUS = {
   DIKIRIM: 'DIKIRIM',
   DALAM_PERJALANAN: 'DALAM_PERJALANAN',
   TIBA: 'TIBA',
 } as const;
+
 export type ShipmentStatus =
   (typeof SHIPMENT_STATUS)[keyof typeof SHIPMENT_STATUS];
+
 export const INVOICE_STATUS = {
   BELUM_LUNAS: 'BELUM_LUNAS',
   LUNAS: 'LUNAS',
   BATAL: 'BATAL',
 } as const;
+
 export type InvoiceStatus =
   (typeof INVOICE_STATUS)[keyof typeof INVOICE_STATUS];
+
 export const PAYMENT_STATUS = {
   BERHASIL: 'BERHASIL',
   GAGAL: 'GAGAL',
   PENDING: 'PENDING',
 } as const;
+
 export type PaymentStatus =
   (typeof PAYMENT_STATUS)[keyof typeof PAYMENT_STATUS];
+
 export const PASSWORD_RESET_STATUS = {
   MENUNGGU: 'MENUNGGU',
   SELESAI: 'SELESAI',
 } as const;
+
 export type PasswordResetStatus =
   (typeof PASSWORD_RESET_STATUS)[keyof typeof PASSWORD_RESET_STATUS];
-
-export type CancellationStatus =
-  (typeof CANCELLATION_STATUS)[keyof typeof CANCELLATION_STATUS];
 
 // Peran yang boleh melihat informasi harga (TSD AC-08 & KONTRAK v2 Bagian 9)
 export const PRICE_VISIBLE_ROLES: readonly RoleCode[] = [
@@ -166,6 +174,7 @@ export const HIDDEN_PRICE_FIELDS = [
 
 export type HiddenPriceField = (typeof HIDDEN_PRICE_FIELDS)[number];
 
+// Kode dan pesan error resmi sesuai FSD Bagian 6 & KONTRAK Bagian 8
 export const ERROR_CODE = {
   AUTH_UNAUTHENTICATED: 'ERR-AUTH-01',
   AUTH_INVALID_CREDENTIALS: 'ERR-AUTH-02',
@@ -174,13 +183,17 @@ export const ERROR_CODE = {
   AUTH_SESSION_TIMEOUT: 'ERR-AUTH-05',
   AUTH_ACCOUNT_LOCKED: 'ERR-AUTH-06',
   AUTH_MUST_CHANGE_PASSWORD: 'ERR-AUTH-07',
-  USER_DUPLICATE: 'ERR-USR-01',
+  USER_NOT_LOCKED: 'ERR-USR-01',
+  USER_SELF_DEACTIVATE: 'ERR-USR-02',
   SESSION_NOT_FOUND: 'ERR-SES-01',
   VALIDATION_REQUIRED: 'ERR-VAL-01',
+  VALIDATION_USERNAME_TAKEN: 'ERR-VAL-04',
   SYS_UNAVAILABLE: 'ERR-SYS-01',
   SYS_INTERNAL: 'ERR-SYS-02',
 } as const;
+
 export type SystemErrorCode = (typeof ERROR_CODE)[keyof typeof ERROR_CODE];
+
 export const ERROR_MESSAGE: Record<SystemErrorCode, string> = {
   [ERROR_CODE.AUTH_UNAUTHENTICATED]: 'Silakan login terlebih dahulu.',
   [ERROR_CODE.AUTH_INVALID_CREDENTIALS]: 'Username atau password salah.',
@@ -193,9 +206,12 @@ export const ERROR_MESSAGE: Record<SystemErrorCode, string> = {
     'Akun Anda terkunci setelah 5 kali gagal login. Hubungi Administrator.',
   [ERROR_CODE.AUTH_MUST_CHANGE_PASSWORD]:
     'Anda wajib mengganti password sementara sebelum melanjutkan.',
-  [ERROR_CODE.USER_DUPLICATE]: 'Username atau karyawan sudah memiliki akun.',
+  [ERROR_CODE.USER_NOT_LOCKED]: 'Akun ini tidak dalam status terkunci.',
+  [ERROR_CODE.USER_SELF_DEACTIVATE]:
+    'Anda tidak dapat menonaktifkan akun sendiri.',
   [ERROR_CODE.SESSION_NOT_FOUND]: 'Sesi tidak ditemukan atau sudah berakhir.',
   [ERROR_CODE.VALIDATION_REQUIRED]: 'Kolom ini wajib diisi.',
+  [ERROR_CODE.VALIDATION_USERNAME_TAKEN]: 'Username sudah dipakai.',
   [ERROR_CODE.SYS_UNAVAILABLE]:
     'Layanan sedang tidak tersedia. Silakan coba lagi.',
   [ERROR_CODE.SYS_INTERNAL]:

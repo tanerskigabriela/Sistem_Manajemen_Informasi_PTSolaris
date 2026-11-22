@@ -6,9 +6,11 @@ import {
 } from 'express';
 import { getPool } from '../db/pool';
 import { sendSuccess } from '../utils/response';
+import activityLogsRoutes from './activity-logs.routes';
 import authRoutes from './auth.routes';
 import orderRoutes from './order.routes';
 import produksiRoutes from './produksi.routes';
+import usersRoutes from './users.routes';
 
 const router = Router();
 
@@ -44,6 +46,8 @@ router.get(
 
 // Router modul A (auth, users, activity-logs, dst.)
 router.use(authRoutes);
+router.use(usersRoutes);
+router.use(activityLogsRoutes);
 
 // Router modul B (buyers, product-types, items, order-levels, orders, dst.)
 router.use(orderRoutes);
