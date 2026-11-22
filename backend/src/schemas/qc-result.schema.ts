@@ -1,9 +1,11 @@
 import { z } from 'zod';
-import { STAGES } from '../constants';
+import { INSPECTION_TYPE, STAGES } from '../constants';
+
+const INVALID_ID = 'Format ID tidak valid.';
 
 const required = 'Kolom ini wajib diisi.';
 
-export const spkIdParams = z.object({ id: z.string().uuid() });
+export const spkIdParams = z.object({ id: z.string().uuid(INVALID_ID) });
 
 /**
  * stage_code menerima semua tahap supaya PACKING bisa ditolak dengan ERR-QC-02 (bukan ERR-VAL-01).
@@ -15,13 +17,15 @@ export const createQcResultBody = z.object({
     .string({ required_error: required })
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal harus YYYY-MM-DD.'),
   qty_passed: z.number({ required_error: required }).int(),
-  standard_id: z.string({ required_error: required }).uuid(),
+  standard_id: z.string({ required_error: required }).uuid(INVALID_ID),
   sample_qty: z.number().int().nullish(),
-  inspection_type: z.enum(['INLINE', 'FINAL']).default('INLINE'),
+  inspection_type: z
+    .enum([INSPECTION_TYPE.INLINE, INSPECTION_TYPE.FINAL])
+    .default(INSPECTION_TYPE.INLINE),
   defects: z
     .array(
       z.object({
-        defect_type_id: z.string({ required_error: required }).uuid(),
+        defect_type_id: z.string({ required_error: required }).uuid(INVALID_ID),
         qty: z.number({ required_error: required }).int(),
         action_taken: z.string().trim().max(200).nullish(),
       }),

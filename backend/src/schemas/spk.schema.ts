@@ -1,14 +1,16 @@
 import { z } from 'zod';
 import { SPK_STATUS } from '../constants';
 
+const INVALID_ID = 'Format ID tidak valid.';
+
 const required = 'Kolom ini wajib diisi.';
 
-export const spkIdParams = z.object({ id: z.string().uuid() });
+export const spkIdParams = z.object({ id: z.string().uuid(INVALID_ID) });
 
 /** ERR-VAL-02 (qty > 0) dan ERR-VAL-13 (centang bahan lengkap) dicek di service. */
 export const submitSpkBody = z.object({
-  order_detail_id: z.string({ required_error: required }).uuid(),
-  line_id: z.string({ required_error: required }).uuid(),
+  order_detail_id: z.string({ required_error: required }).uuid(INVALID_ID),
+  line_id: z.string({ required_error: required }).uuid(INVALID_ID),
   target_date: z
     .string({ required_error: required })
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal harus YYYY-MM-DD.'),
@@ -32,7 +34,7 @@ export const listSpkQuery = z.object({
   status: z
     .enum([SPK_STATUS.MENUNGGU_PERSETUJUAN, SPK_STATUS.DISETUJUI, SPK_STATUS.DITOLAK])
     .optional(),
-  order_id: z.string().uuid().optional(),
+  order_id: z.string().uuid(INVALID_ID).optional(),
   page: z.coerce.number().int().min(1).default(1),
   per_page: z.coerce.number().int().min(1).max(100).default(10),
 });

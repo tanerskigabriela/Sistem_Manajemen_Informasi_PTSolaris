@@ -1,4 +1,4 @@
-import { ACTION_TYPE } from '../constants';
+import { ACTION_TYPE, STAGES, type StageCode } from '../constants';
 import { ProgressRepository } from '../repositories/progress.repository';
 import { SpkRepository } from '../repositories/spk.repository';
 import type { CreateProgressInput, UpdateProgressInput } from '../schemas/progress.schema';
@@ -13,7 +13,8 @@ import {
   canSeeSpk,
 } from './production-guard';
 
-const CUTTING = 'CUTTING';
+/** Tahap pertama; satu-satunya tahap tanpa batas lolos QC sebelumnya (RB-37, RB-38). */
+const CUTTING: StageCode = STAGES[0];
 
 /** FSD-2.12 Catat Progres Harian. */
 export class ProgressService extends BaseService {
@@ -78,7 +79,7 @@ export class ProgressService extends BaseService {
           user_id: actor.user_id,
           username: actor.username,
           action_type: ACTION_TYPE.TAMBAH,
-          resource_type: 'production_progress',
+          resource_type: 'garment.production_progress',
           resource_id: id,
           new_values: created as unknown as Record<string, unknown>,
           device: actor.device,
@@ -140,7 +141,7 @@ export class ProgressService extends BaseService {
           user_id: actor.user_id,
           username: actor.username,
           action_type: ACTION_TYPE.UBAH,
-          resource_type: 'production_progress',
+          resource_type: 'garment.production_progress',
           resource_id: id,
           old_values: old as unknown as Record<string, unknown>,
           new_values: updated as unknown as Record<string, unknown>,

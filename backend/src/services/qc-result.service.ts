@@ -1,4 +1,4 @@
-import { ACTION_TYPE } from '../constants';
+import { ACTION_TYPE, QC_STAGES } from '../constants';
 import { ProgressRepository } from '../repositories/progress.repository';
 import { QcResultRepository } from '../repositories/qc-result.repository';
 import { SpkRepository } from '../repositories/spk.repository';
@@ -44,7 +44,7 @@ export class QcResultService extends BaseService {
       color: spk.color,
       // RB-43: tidak lolos = selesai kumulatif - lolos kumulatif, per tahap (Packing tidak ada QC)
       stages: stages
-        .filter((s) => s.stage_code !== 'PACKING')
+        .filter((s) => isQcStage(s.stage_code))
         .map((s) => {
           const passed = s.cumulative_passed ?? 0;
           const failed = Math.max(s.cumulative_done - passed, 0);
@@ -64,8 +64,8 @@ export class QcResultService extends BaseService {
   }
 
   async create(spkId: string, input: CreateQcResultInput, actor: Actor) {
-    // ERR-QC-02 (RB-41)
-    if (input.stage_code === 'PACKING') {
+    // ERR-QC-02 (RB-41): hanya tahap di QC_STAGES (Cutting s.d. Ironing)
+    if (!isQcStage(input.stage_code)) {
       throw new AppError(422, 'ERR-QC-02', 'Tahap ini tidak dapat dicatat hasil QC-nya.', [
         { field: 'stage_code', message: 'Tahap ini tidak dapat dicatat hasil QC-nya.' },
       ]);
@@ -84,7 +84,7 @@ export class QcResultService extends BaseService {
     }
     const ids = input.defects.map((d) => d.defect_type_id.toUpperCase());
     if (new Set(ids).size !== ids.length) {
-      throw new AppError(422, 'ERR-VAL-01', 'Jenis cacat tidak boleh dipilih dua kali.', [
+      throw new AppError(422, 'ERR-VAL-01', 'Kolom ini wajib diisi.', [
         { field: 'defects', message: 'Jenis cacat tidak boleh dipilih dua kali.' },
       ]);
     }
@@ -126,7 +126,7 @@ export class QcResultService extends BaseService {
           user_id: actor.user_id,
           username: actor.username,
           action_type: ACTION_TYPE.TAMBAH,
-          resource_type: 'qc_results',
+          resource_type: 'garment.qc_results',
           resource_id: id,
           new_values: created as unknown as Record<string, unknown>,
           device: actor.device,
@@ -154,6 +154,10 @@ export class QcResultService extends BaseService {
       return mapKnownSqlError(err, 'standard_id');
     }
   }
+}
+
+function isQcStage(stage: string): boolean {
+  return (QC_STAGES as readonly string[]).includes(stage);
 }
 
 function round2(n: number): number {
