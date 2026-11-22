@@ -6,13 +6,9 @@ import type {
   ListOrdersQuery,
 } from "../schemas/orders.schema";
 import type { Actor } from "../utils/order-actor";
+import type { RequestMeta } from "../utils/request-meta";
 import { AppError } from "../utils/errors";
 import { BaseService } from "./base.service";
-
-interface RequestMeta {
-  device: string | null;
-  ip_address: string;
-}
 
 export class OrderService extends BaseService {
   private readonly repo = new OrderRepository();
@@ -37,7 +33,7 @@ export class OrderService extends BaseService {
         user_id: actor.user_id,
         username: actor.username,
         action_type: ACTION_TYPE.TAMBAH,
-        resource_type: "orders",
+        resource_type: "garment.orders",
         resource_id: out.order_id,
         new_values: {
           order_code: out.order_code,

@@ -1,10 +1,12 @@
 import { z } from 'zod';
 import { PAYMENT_TERM } from '../constants';
 
+const INVALID_ID = 'Format ID tidak valid.';
+
 const required = 'Kolom ini wajib diisi.';
 
 export const supplierIdParams = z.object({
-  id: z.string().uuid(),
+  id: z.string().uuid(INVALID_ID),
 });
 
 export const listSuppliersQuery = z.object({
