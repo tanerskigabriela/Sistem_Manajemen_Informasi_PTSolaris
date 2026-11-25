@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { http, setUnauthorizedHandler } from '../lib/http.ts';
+import { http, setUnauthorizedHandler } from '../lib/http';
 import type { ApiSuccessResponse, AuthUser } from '../types/api.ts';
 
 interface AuthContextValue {
