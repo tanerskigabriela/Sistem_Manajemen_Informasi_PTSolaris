@@ -15,6 +15,8 @@ export interface TableProps<T> {
   columns: TableColumn<T>[];
   data: T[];
   rowKey: (row: T, index: number) => string | number;
+  selectedRowKey?: string | number | null;
+  onRowClick?: (row: T, index: number) => void;
   loading?: boolean;
   error?: string | null;
   onRetry?: () => void;
@@ -33,6 +35,8 @@ export function Table<T>({
   columns,
   data,
   rowKey,
+  selectedRowKey,
+  onRowClick,
   loading = false,
   error = null,
   onRetry,
@@ -40,7 +44,6 @@ export function Table<T>({
   meta,
   onPageChange,
 }: TableProps<T>) {
-  // Kondisi 1: Error + tombol Coba lagi (R-11)
   if (error) {
     return (
       <Alert
@@ -53,17 +56,17 @@ export function Table<T>({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-xs">
+    <div className="overflow-hidden rounded-xl border border-line bg-surface">
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-line text-sm">
-          <thead className="bg-surface-muted/70">
+          <thead className="bg-pale-gold">
             <tr>
               {columns.map((col) => (
                 <th
                   key={col.key}
                   scope="col"
                   className={[
-                    'px-4 py-3 text-xs font-semibold uppercase tracking-wide text-ink-muted whitespace-nowrap',
+                    'px-4 py-3 text-[13px] font-bold text-ink whitespace-nowrap',
                     ALIGN_CLASSES[col.align ?? 'left'],
                     col.className ?? '',
                   ].join(' ')}
@@ -74,68 +77,84 @@ export function Table<T>({
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-line bg-surface">
-            {/* Kondisi 2: Memuat */}
+          <tbody className="divide-y divide-line">
             {loading ? (
               <tr>
                 <td
                   colSpan={columns.length}
-                  className="px-4 py-10 text-center text-sm text-ink-muted"
+                  className="bg-surface px-4 py-10 text-center text-sm text-ink-muted"
                 >
                   Memuat data...
                 </td>
               </tr>
             ) : data.length === 0 ? (
-              /* Kondisi 3: Kosong */
               <tr>
                 <td
                   colSpan={columns.length}
-                  className="px-4 py-10 text-center text-sm text-ink-muted"
+                  className="bg-surface px-4 py-10 text-center text-sm text-ink-muted"
                 >
                   {emptyMessage}
                 </td>
               </tr>
             ) : (
-              /* Kondisi 4: Ada data */
-              data.map((row, index) => (
-                <tr
-                  key={rowKey(row, index)}
-                  className="transition-colors hover:bg-canvas/70"
-                >
-                  {columns.map((col) => {
-                    const cellContent = col.render
-                      ? col.render(row, index)
-                      : String(
-                          (row as Record<string, unknown>)[col.key] ?? '-',
-                        );
+              data.map((row, index) => {
+                const key = rowKey(row, index);
+                const isSelected =
+                  selectedRowKey !== undefined &&
+                  selectedRowKey !== null &&
+                  selectedRowKey === key;
 
-                    return (
-                      <td
-                        key={col.key}
-                        className={[
-                          'px-4 py-3 text-ink align-top',
-                          ALIGN_CLASSES[col.align ?? 'left'],
-                          col.className ?? '',
-                        ].join(' ')}
-                      >
-                        {cellContent}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))
+                return (
+                  <tr
+                    key={key}
+                    onClick={onRowClick ? () => onRowClick(row, index) : undefined}
+                    className={[
+                      'transition-colors',
+                      onRowClick ? 'cursor-pointer' : '',
+                      isSelected
+                        ? 'bg-pale-gold/80 font-semibold shadow-[inset_4px_0_0_0_var(--color-brand)]'
+                        : index % 2 === 1
+                          ? 'bg-zebra hover:bg-pale-gold/40'
+                          : 'bg-surface hover:bg-pale-gold/40',
+                    ].join(' ')}
+                  >
+                    {columns.map((col) => {
+                      const cellContent = col.render
+                        ? col.render(row, index)
+                        : String(
+                            (row as Record<string, unknown>)[col.key] ?? '-',
+                          );
+
+                      return (
+                        <td
+                          key={col.key}
+                          className={[
+                            'px-4 py-3 text-ink align-middle',
+                            ALIGN_CLASSES[col.align ?? 'left'],
+                            col.className ?? '',
+                          ].join(' ')}
+                        >
+                          {cellContent}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
       </div>
 
-      {/* Pagination dari meta API */}
       {meta && onPageChange && (
-        <div className="flex flex-col items-center justify-between gap-2 border-t border-line bg-canvas/50 px-4 py-3 text-xs text-ink-muted sm:flex-row">
+        <div className="flex flex-col items-center justify-between gap-2 border-t border-line bg-amber-tint/50 px-4 py-3 text-xs text-ink-muted sm:flex-row">
           <p>
-            Halaman <span className="font-semibold text-ink">{meta.current_page}</span>{' '}
-            dari <span className="font-semibold text-ink">{meta.last_page}</span>{' '}
-            (Total <span className="font-semibold text-ink">{meta.total}</span> data)
+            Halaman{' '}
+            <span className="font-semibold text-ink">{meta.current_page}</span>{' '}
+            dari{' '}
+            <span className="font-semibold text-ink">{meta.last_page}</span>{' '}
+            (Total <span className="font-semibold text-ink">{meta.total}</span>{' '}
+            data)
           </p>
           <div className="flex items-center gap-2">
             <Button

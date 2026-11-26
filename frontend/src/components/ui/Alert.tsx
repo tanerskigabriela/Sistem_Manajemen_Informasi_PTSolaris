@@ -14,10 +14,10 @@ export interface AlertProps {
 }
 
 const VARIANT_CLASSES: Record<AlertVariant, string> = {
-  info: 'bg-info-soft text-info border-info/30',
-  success: 'bg-success-soft text-success border-success/30',
-  warning: 'bg-warning-soft text-warning border-warning/30',
-  danger: 'bg-danger-soft text-danger border-danger/30',
+  info: 'bg-info-soft text-info border-l-info',
+  success: 'bg-success-soft text-success border-l-success',
+  warning: 'bg-warning-soft text-warning border-l-warning',
+  danger: 'bg-danger-soft text-danger border-l-danger',
 };
 
 export function Alert({
@@ -33,7 +33,7 @@ export function Alert({
     <div
       role="alert"
       className={[
-        'flex flex-col gap-2 rounded-lg border px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between',
+        'flex flex-col gap-2 rounded-lg border-l-4 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between',
         VARIANT_CLASSES[variant],
         className,
       ].join(' ')}

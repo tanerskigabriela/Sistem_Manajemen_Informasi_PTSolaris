@@ -42,16 +42,18 @@ export function Modal({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-sidebar/60 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/45 p-4 backdrop-blur-[1px]"
       onClick={onClose}
     >
       <div
-        className={`w-full ${SIZE_CLASSES[size]} rounded-xl border border-line bg-surface shadow-lg`}
+        className={`w-full ${SIZE_CLASSES[size]} rounded-2xl border border-line bg-surface shadow-xl`}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
+        <div className="flex items-start justify-between gap-4 border-b border-line px-6 py-4">
           <div>
-            <h2 className="text-base font-semibold text-ink">{title}</h2>
+            <h2 className="font-display text-xl font-semibold text-ink">
+              {title}
+            </h2>
             {description && (
               <p className="mt-0.5 text-xs text-ink-muted">{description}</p>
             )}
@@ -60,16 +62,16 @@ export function Modal({
             type="button"
             onClick={onClose}
             aria-label="Tutup dialog"
-            className="rounded-md px-2 py-1 text-sm text-ink-muted hover:bg-surface-muted hover:text-ink"
+            className="rounded-md px-2 py-1 text-sm text-ink-muted hover:bg-zebra hover:text-ink"
           >
             ✕
           </button>
         </div>
 
-        <div className="max-h-[70vh] overflow-y-auto px-5 py-4">{children}</div>
+        <div className="max-h-[70vh] overflow-y-auto px-6 py-5">{children}</div>
 
         {footer && (
-          <div className="flex items-center justify-end gap-2 border-t border-line bg-canvas/60 px-5 py-3 rounded-b-xl">
+          <div className="flex items-center justify-end gap-2.5 rounded-b-2xl border-t border-line bg-amber-tint/40 px-6 py-3.5">
             {footer}
           </div>
         )}

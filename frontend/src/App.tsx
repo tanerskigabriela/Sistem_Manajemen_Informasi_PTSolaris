@@ -11,16 +11,31 @@ import OrderListPage from './pages/order/OrderListPage';
 import OrderNewPage from './pages/order/OrderNewPage';
 import ShipmentPage from './pages/order/ShipmentPage';
 
-function PlaceholderPage({ title, code }: { title: string; code: string }) {
+function PlaceholderPage({
+  title,
+  code,
+  subtitle,
+}: {
+  title: string;
+  code: string;
+  subtitle?: string;
+}) {
   return (
-    <div className="rounded-xl border border-line bg-surface p-6 shadow-xs">
-      <p className="text-xs font-semibold uppercase tracking-wide text-brand">
-        {code}
-      </p>
-      <h1 className="mt-1 text-xl font-semibold text-ink">{title}</h1>
-      <p className="mt-2 text-sm text-ink-muted">
-        Halaman ini sedang disiapkan oleh pemilik modul.
-      </p>
+    <div>
+      <div className="mb-5">
+        <h1 className="font-display text-[28px] font-semibold leading-tight text-ink sm:text-[32px]">
+          {title}
+        </h1>
+        <p className="mt-1 text-[13px] font-medium text-ink-muted">
+          {[code, subtitle].filter(Boolean).join(' · ')}
+        </p>
+      </div>
+
+      <section className="rounded-2xl border border-line bg-surface p-6">
+        <p className="text-sm text-ink-muted">
+          Halaman ini sedang disiapkan oleh pemilik modul.
+        </p>
+      </section>
     </div>
   );
 }
@@ -35,7 +50,13 @@ export default function App() {
             path="/login"
             element={
               <div className="flex min-h-screen items-center justify-center bg-canvas p-4">
-                <PlaceholderPage title="Login (SCR-01)" code="SCR-01" />
+                <div className="w-full max-w-md">
+                  <PlaceholderPage
+                    title="Masuk"
+                    code="SCR-01"
+                    subtitle="Gunakan akun yang diberikan Administrator Sistem"
+                  />
+                </div>
               </div>
             }
           />
@@ -46,7 +67,13 @@ export default function App() {
               {/* Milik A — Semua role */}
               <Route
                 path="/beranda"
-                element={<PlaceholderPage title="Beranda" code="SCR-02" />}
+                element={
+                  <PlaceholderPage
+                    title="Beranda"
+                    code="SCR-02"
+                    subtitle="Menu dan ringkasan sesuai peran"
+                  />
+                }
               />
 
               {/* Milik A — Khusus ADMIN */}
@@ -54,13 +81,21 @@ export default function App() {
                 <Route
                   path="/pengguna"
                   element={
-                    <PlaceholderPage title="Manajemen Pengguna" code="SCR-03" />
+                    <PlaceholderPage
+                      title="Manajemen Pengguna"
+                      code="SCR-03"
+                      subtitle="Akun, kunci akun, dan permintaan reset password"
+                    />
                   }
                 />
                 <Route
                   path="/log-aktivitas"
                   element={
-                    <PlaceholderPage title="Log Aktivitas" code="SCR-23" />
+                    <PlaceholderPage
+                      title="Log Aktivitas"
+                      code="SCR-23"
+                      subtitle="Hanya dapat dibaca; log tidak dapat diubah atau dihapus"
+                    />
                   }
                 />
               </Route>
@@ -133,7 +168,11 @@ export default function App() {
                 <Route
                   path="/supplier"
                   element={
-                    <PlaceholderPage title="Data Supplier" code="SCR-09" />
+                    <PlaceholderPage
+                      title="Supplier"
+                      code="SCR-09"
+                      subtitle="Data supplier dan bahan yang dipasok"
+                    />
                   }
                 />
               </Route>
@@ -143,8 +182,9 @@ export default function App() {
                   path="/bahan-baku"
                   element={
                     <PlaceholderPage
-                      title="Bahan Baku per Style"
+                      title="Bahan Baku"
                       code="SCR-10"
+                      subtitle="Bahan yang dicatat sudah diperiksa dan dinyatakan layak"
                     />
                   }
                 />
@@ -163,13 +203,18 @@ export default function App() {
                     <PlaceholderPage
                       title="Surat Perintah Kerja (SPK)"
                       code="SCR-11"
+                      subtitle="Satu SPK untuk satu style"
                     />
                   }
                 />
                 <Route
                   path="/progres"
                   element={
-                    <PlaceholderPage title="Progres Harian" code="SCR-12" />
+                    <PlaceholderPage
+                      title="Progres Harian"
+                      code="SCR-12"
+                      subtitle="Formulir yang sama untuk seluruh tahap"
+                    />
                   }
                 />
               </Route>
@@ -181,7 +226,13 @@ export default function App() {
               >
                 <Route
                   path="/qc"
-                  element={<PlaceholderPage title="Hasil QC" code="SCR-13" />}
+                  element={
+                    <PlaceholderPage
+                      title="Hasil QC"
+                      code="SCR-13"
+                      subtitle="QC hanya mencatat jumlah barang yang lolos"
+                    />
+                  }
                 />
               </Route>
             </Route>
