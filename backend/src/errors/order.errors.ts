@@ -157,3 +157,52 @@ export function cancelOrderError(
       );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Hari 3: pengiriman (FSD 2.15). ERR-KRM-05 dan 06 sudah dipakai trigger dan SP di file 09.
+// ---------------------------------------------------------------------------
+export const SHIPMENT_MSG = {
+  NOT_IN_PRODUCTION: 'Pengiriman hanya dapat dicatat untuk order berstatus Dalam Produksi.',
+  INVALID_EXPEDITION: 'Ekspedisi tidak aktif atau tidak melayani level order ini.',
+  ROUTE_MISMATCH: 'Rute yang dipilih bukan milik ekspedisi ini.',
+  INVALID_VEHICLE: 'Kendaraan yang dipilih tidak tersedia.',
+  NO_WAREHOUSE: 'Gudang barang jadi untuk pabrik order ini belum terdaftar.',
+} as const;
+
+// ERR-KRM-02: "Jumlah kiriman style {kode barang} melebihi barang siap kirim (maksimum: n)."
+export const exceedsReadyToShip = (itemCode: string, size: string, max: number) =>
+  new AppError(
+    422,
+    'ERR-KRM-02',
+    `Jumlah kiriman style ${itemCode} melebihi barang siap kirim (maksimum: ${max}).`,
+    [{ field: size === '*' ? `items.${itemCode}` : `items.${itemCode}.${size}`, message: `Maksimum ${max}.` }],
+  );
+
+// Nilai @result sp_record_shipment selain SUCCESS dan EXCEEDS -> AppError
+export function shipmentError(result: string): AppError {
+  switch (result) {
+    case 'NOT_FOUND':
+      return notFound();
+    case 'ORDER_NOT_IN_PRODUCTION':
+      return new AppError(409, 'ERR-KRM-01', SHIPMENT_MSG.NOT_IN_PRODUCTION);
+    case 'INVALID_ITEMS':
+    case 'INVALID_JSON':
+      return fieldError([{ field: 'items', message: 'Barang yang dikirim tidak valid atau tidak termasuk order ini.' }]);
+    case 'INVALID_EXPEDITION':
+      return new AppError(422, 'ERR-KRM-03', SHIPMENT_MSG.INVALID_EXPEDITION, [
+        { field: 'expedition_id', message: SHIPMENT_MSG.INVALID_EXPEDITION },
+      ]);
+    case 'ROUTE_MISMATCH':
+      return new AppError(422, 'ERR-KRM-04', SHIPMENT_MSG.ROUTE_MISMATCH, [
+        { field: 'route_id', message: SHIPMENT_MSG.ROUTE_MISMATCH },
+      ]);
+    case 'INVALID_VEHICLE':
+      return new AppError(422, 'ERR-KRM-07', SHIPMENT_MSG.INVALID_VEHICLE, [
+        { field: 'vehicle_id', message: SHIPMENT_MSG.INVALID_VEHICLE },
+      ]);
+    case 'NO_WAREHOUSE':
+      return new AppError(409, 'ERR-KRM-08', SHIPMENT_MSG.NO_WAREHOUSE);
+    default:
+      return new AppError(500, 'ERR-SYS-02', 'Terjadi kesalahan pada sistem. Silakan coba lagi.');
+  }
+}

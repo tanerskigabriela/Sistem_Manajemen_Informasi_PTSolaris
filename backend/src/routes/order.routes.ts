@@ -24,6 +24,20 @@ import {
   getOrder,
   listOrders,
 } from "../controllers/orders.controller";
+import {
+  createShipment,
+  getDashboard,
+  getDeliveryNote,
+  getReadyToShip,
+  listExpeditions,
+  listShipments,
+} from "../controllers/shipments.controller";
+import {
+  createShipmentSchema,
+  dashboardQuery,
+  listExpeditionsQuery,
+  listShipmentsQuery,
+} from "../schemas/shipments.schema";
 import { authenticate } from "../middlewares/authenticate";
 import { authorize } from "../middlewares/authorize";
 import { validate } from "../middlewares/validate";
@@ -161,6 +175,50 @@ router.post(
   authorize(PIMPINAN),
   validate({ params: idParams, body: cancelOrderSchema }),
   cancelOrder,
+);
+
+// Pengiriman (FSD 2.15) dan Dashboard (FSD 2.14)
+router.get(
+  "/expeditions",
+  authenticate,
+  authorize(PPIC),
+  validate({ query: listExpeditionsQuery }),
+  listExpeditions,
+);
+router.get(
+  "/orders/:id/ready-to-ship",
+  authenticate,
+  authorize(PPIC),
+  validate({ params: idParams }),
+  getReadyToShip,
+);
+router.post(
+  "/shipments",
+  authenticate,
+  authorize(PPIC),
+  validate(createShipmentSchema),
+  createShipment,
+);
+router.get(
+  "/shipments",
+  authenticate,
+  authorize(PPIC, PIMPINAN),
+  validate({ query: listShipmentsQuery }),
+  listShipments,
+);
+router.get(
+  "/shipments/:id/delivery-note",
+  authenticate,
+  authorize(PPIC),
+  validate({ params: idParams }),
+  getDeliveryNote,
+);
+router.get(
+  "/dashboard",
+  authenticate,
+  authorize(PIMPINAN),
+  validate({ query: dashboardQuery }),
+  getDashboard,
 );
 
 export default router;
