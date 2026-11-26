@@ -80,7 +80,8 @@ export const orderSwaggerTags = [
   {
     name: "Order",
     description: "FSD 2.4 Input Order, 2.5 Daftar dan Detail Order",
-  },
+  },  { name: "Pengiriman", description: "FSD 2.15 Catat Pengiriman dan Surat Jalan" },
+  { name: "Dashboard", description: "FSD 2.14 Dashboard Pimpinan" },
 ];
 
 export const orderSwaggerPaths = {
@@ -289,6 +290,90 @@ export const orderSwaggerPaths = {
         "409": { description: "ERR-ORD-03 / ERR-ORD-05 / ERR-BTL-01" },
         "422": { description: "ERR-VAL-06" },
       },
+    },
+  },
+  "/expeditions": {
+    get: {
+      tags: ["Pengiriman"],
+      summary: "Daftar ekspedisi aktif (PPIC)",
+      parameters: [
+        {
+          name: "level_code",
+          in: "query",
+          schema: { type: "string", enum: ["DOMESTIK", "INTERNASIONAL"] },
+          description: "Isi dengan level order supaya hanya ekspedisi yang cakupannya sesuai",
+        },
+      ],
+      responses: ok,
+    },
+  },
+  "/orders/{id}/ready-to-ship": {
+    get: {
+      tags: ["Pengiriman"],
+      summary: "Sisa barang siap kirim per style per ukuran (PPIC)",
+      parameters: idParam,
+      responses: ok,
+    },
+  },
+  "/shipments": {
+    get: {
+      tags: ["Pengiriman"],
+      summary: "Daftar pengiriman (PPIC, PIMPINAN)",
+      parameters: [
+        ...pageParams,
+        { name: "order_id", in: "query", schema: { type: "string", format: "uuid" } },
+        { name: "date_from", in: "query", schema: { type: "string", format: "date" } },
+        { name: "date_to", in: "query", schema: { type: "string", format: "date" } },
+      ],
+      responses: ok,
+    },
+    post: {
+      tags: ["Pengiriman"],
+      summary: "Catat pengiriman dan buat nomor surat jalan (PPIC)",
+      requestBody: body({
+        order_id: "ISI id order DALAM_PRODUKSI",
+        ship_date: "2026-11-24",
+        expedition_id: "ISI dari GET /expeditions",
+        destination_address: "Jl. Contoh No. 10, Kota Contoh",
+        package_count: 5,
+        items: [
+          {
+            order_detail_id: "ISI dari GET /orders/{id}/ready-to-ship",
+            size: "M",
+            qty: 50,
+          },
+        ],
+      }),
+      responses: {
+        "201": { description: "Pengiriman tercatat, berisi delivery_note_no SJ-TTBB-NNN" },
+        "409": { description: "ERR-KRM-01 / ERR-KRM-08" },
+        "422": { description: "ERR-KRM-02 / ERR-KRM-03 / ERR-KRM-04 / ERR-KRM-07 / ERR-VAL-01" },
+      },
+    },
+  },
+  "/shipments/{id}/delivery-note": {
+    get: {
+      tags: ["Pengiriman"],
+      summary: "Data surat jalan siap cetak, tanpa harga (PPIC)",
+      parameters: idParam,
+      responses: ok,
+    },
+  },
+  "/dashboard": {
+    get: {
+      tags: ["Dashboard"],
+      summary: "Ringkasan dan daftar order untuk Pimpinan",
+      parameters: [
+        {
+          name: "status",
+          in: "query",
+          schema: {
+            type: "string",
+            enum: ["MENUNGGU_PERSETUJUAN", "DISETUJUI", "DALAM_PRODUKSI", "SELESAI", "DIBATALKAN"],
+          },
+        },
+      ],
+      responses: ok,
     },
   },
 };
