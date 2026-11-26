@@ -2,6 +2,14 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppLayout } from './components/layout/AppLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
+import ApprovalPage from './pages/order/ApprovalPage';
+import BuyerPage from './pages/order/BuyerPage';
+import DashboardPage from './pages/order/DashboardPage';
+import DeliveryNotePage from './pages/order/DeliveryNotePage';
+import OrderDetailPage from './pages/order/OrderDetailPage';
+import OrderListPage from './pages/order/OrderListPage';
+import OrderNewPage from './pages/order/OrderNewPage';
+import ShipmentPage from './pages/order/ShipmentPage';
 
 function PlaceholderPage({
   title,
@@ -100,26 +108,14 @@ export default function App() {
               >
                 <Route
                   path="/buyer"
-                  element={
-                    <PlaceholderPage
-                      title="Data Buyer"
-                      code="SCR-04"
-                      subtitle="Kode buyer dipakai untuk membentuk kode barang (BBB-JJ-NNNN)"
-                    />
-                  }
+                  element={<BuyerPage />}
                 />
               </Route>
 
               <Route element={<ProtectedRoute allowedRoles={['MARKETING']} />}>
                 <Route
                   path="/order/baru"
-                  element={
-                    <PlaceholderPage
-                      title="Order Baru"
-                      code="SCR-05"
-                      subtitle="Satu order berisi satu atau lebih style"
-                    />
-                  }
+                  element={<OrderNewPage />}
                 />
               </Route>
 
@@ -132,36 +128,19 @@ export default function App() {
               >
                 <Route
                   path="/order"
-                  element={
-                    <PlaceholderPage
-                      title="Daftar dan Detail Order"
-                      code="SCR-06"
-                      subtitle="Status dan riwayat setiap order"
-                    />
-                  }
+                  element={<OrderListPage />}
                 />
+                <Route path="/order/:id" element={<OrderDetailPage />} />
               </Route>
 
               <Route element={<ProtectedRoute allowedRoles={['PIMPINAN']} />}>
                 <Route
                   path="/persetujuan"
-                  element={
-                    <PlaceholderPage
-                      title="Persetujuan"
-                      code="SCR-08"
-                      subtitle="Hanya Pimpinan yang dapat menyetujui atau menolak"
-                    />
-                  }
+                  element={<ApprovalPage />}
                 />
                 <Route
                   path="/dashboard"
-                  element={
-                    <PlaceholderPage
-                      title="Dashboard"
-                      code="SCR-14"
-                      subtitle="Data diperbarui ≤ 1 menit setelah progres/QC disimpan"
-                    />
-                  }
+                  element={<DashboardPage />}
                 />
               </Route>
 
@@ -172,23 +151,11 @@ export default function App() {
               >
                 <Route
                   path="/pengiriman"
-                  element={
-                    <PlaceholderPage
-                      title="Pengiriman"
-                      code="SCR-16"
-                      subtitle="Satu surat jalan dapat memuat beberapa style dari order yang sama"
-                    />
-                  }
+                  element={<ShipmentPage />}
                 />
                 <Route
                   path="/pengiriman/:id/surat-jalan"
-                  element={
-                    <PlaceholderPage
-                      title="Surat Jalan"
-                      code="SCR-17"
-                      subtitle="Surat jalan siap cetak tanpa harga"
-                    />
-                  }
+                  element={<DeliveryNotePage />}
                 />
               </Route>
 
