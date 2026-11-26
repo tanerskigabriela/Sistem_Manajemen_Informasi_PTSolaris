@@ -13,6 +13,7 @@ import OrderListPage from './pages/order/OrderListPage';
 import OrderNewPage from './pages/order/OrderNewPage';
 import ShipmentPage from './pages/order/ShipmentPage';
 import UsersPage from './pages/admin/UsersPage';
+import ActivityLogsPage from './pages/admin/ActivityLogsPage';
 
 function PlaceholderPage({
   title,
@@ -60,16 +61,7 @@ export default function App() {
               {/* Milik A — Khusus ADMIN */}
               <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
                 <Route path="/pengguna" element={<UsersPage />} />
-                <Route
-                  path="/log-aktivitas"
-                  element={
-                    <PlaceholderPage
-                      title="Log Aktivitas"
-                      code="SCR-23"
-                      subtitle="Hanya dapat dibaca; log tidak dapat diubah atau dihapus"
-                    />
-                  }
-                />
+                <Route path="/log-aktivitas" element={<ActivityLogsPage />} />
               </Route>
 
               {/* Milik B — Order & Pengiriman */}
