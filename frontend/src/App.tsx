@@ -12,6 +12,7 @@ import OrderDetailPage from './pages/order/OrderDetailPage';
 import OrderListPage from './pages/order/OrderListPage';
 import OrderNewPage from './pages/order/OrderNewPage';
 import ShipmentPage from './pages/order/ShipmentPage';
+import UsersPage from './pages/admin/UsersPage';
 
 function PlaceholderPage({
   title,
@@ -58,16 +59,7 @@ export default function App() {
 
               {/* Milik A — Khusus ADMIN */}
               <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
-                <Route
-                  path="/pengguna"
-                  element={
-                    <PlaceholderPage
-                      title="Manajemen Pengguna"
-                      code="SCR-03"
-                      subtitle="Akun, kunci akun, dan permintaan reset password"
-                    />
-                  }
-                />
+                <Route path="/pengguna" element={<UsersPage />} />
                 <Route
                   path="/log-aktivitas"
                   element={
