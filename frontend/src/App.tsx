@@ -2,6 +2,14 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppLayout } from './components/layout/AppLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
+import ApprovalPage from './pages/order/ApprovalPage';
+import BuyerPage from './pages/order/BuyerPage';
+import DashboardPage from './pages/order/DashboardPage';
+import DeliveryNotePage from './pages/order/DeliveryNotePage';
+import OrderDetailPage from './pages/order/OrderDetailPage';
+import OrderListPage from './pages/order/OrderListPage';
+import OrderNewPage from './pages/order/OrderNewPage';
+import ShipmentPage from './pages/order/ShipmentPage';
 
 function PlaceholderPage({ title, code }: { title: string; code: string }) {
   return (
@@ -65,19 +73,14 @@ export default function App() {
               >
                 <Route
                   path="/buyer"
-                  element={<PlaceholderPage title="Data Buyer" code="SCR-04" />}
+                  element={<BuyerPage />}
                 />
               </Route>
 
               <Route element={<ProtectedRoute allowedRoles={['MARKETING']} />}>
                 <Route
                   path="/order/baru"
-                  element={
-                    <PlaceholderPage
-                      title="Formulir Order Baru"
-                      code="SCR-05"
-                    />
-                  }
+                  element={<OrderNewPage />}
                 />
               </Route>
 
@@ -90,30 +93,19 @@ export default function App() {
               >
                 <Route
                   path="/order"
-                  element={
-                    <PlaceholderPage
-                      title="Daftar & Detail Order"
-                      code="SCR-06"
-                    />
-                  }
+                  element={<OrderListPage />}
                 />
+                <Route path="/order/:id" element={<OrderDetailPage />} />
               </Route>
 
               <Route element={<ProtectedRoute allowedRoles={['PIMPINAN']} />}>
                 <Route
                   path="/persetujuan"
-                  element={
-                    <PlaceholderPage
-                      title="Persetujuan Order & SPK"
-                      code="SCR-08"
-                    />
-                  }
+                  element={<ApprovalPage />}
                 />
                 <Route
                   path="/dashboard"
-                  element={
-                    <PlaceholderPage title="Dashboard Pimpinan" code="SCR-14" />
-                  }
+                  element={<DashboardPage />}
                 />
               </Route>
 
@@ -124,13 +116,11 @@ export default function App() {
               >
                 <Route
                   path="/pengiriman"
-                  element={<PlaceholderPage title="Pengiriman" code="SCR-16" />}
+                  element={<ShipmentPage />}
                 />
                 <Route
                   path="/pengiriman/:id/surat-jalan"
-                  element={
-                    <PlaceholderPage title="Surat Jalan" code="SCR-17" />
-                  }
+                  element={<DeliveryNotePage />}
                 />
               </Route>
 
