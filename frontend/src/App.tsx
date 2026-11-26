@@ -2,6 +2,8 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppLayout } from './components/layout/AppLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
+import BerandaPage from './pages/admin/BerandaPage';
+import LoginPage from './pages/admin/LoginPage';
 import ApprovalPage from './pages/order/ApprovalPage';
 import BuyerPage from './pages/order/BuyerPage';
 import DashboardPage from './pages/order/DashboardPage';
@@ -10,6 +12,8 @@ import OrderDetailPage from './pages/order/OrderDetailPage';
 import OrderListPage from './pages/order/OrderListPage';
 import OrderNewPage from './pages/order/OrderNewPage';
 import ShipmentPage from './pages/order/ShipmentPage';
+import UsersPage from './pages/admin/UsersPage';
+import ActivityLogsPage from './pages/admin/ActivityLogsPage';
 
 function PlaceholderPage({
   title,
@@ -45,59 +49,19 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          {/* Publik */}
-          <Route
-            path="/login"
-            element={
-              <div className="flex min-h-screen items-center justify-center bg-canvas p-4">
-                <div className="w-full max-w-md">
-                  <PlaceholderPage
-                    title="Masuk"
-                    code="SCR-01"
-                    subtitle="Gunakan akun yang diberikan Administrator Sistem"
-                  />
-                </div>
-              </div>
-            }
-          />
+          {/* Publik — SCR-01 */}
+          <Route path="/login" element={<LoginPage />} />
 
           {/* Seluruh halaman terautentikasi memakai AppLayout */}
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
-              {/* Milik A — Semua role */}
-              <Route
-                path="/beranda"
-                element={
-                  <PlaceholderPage
-                    title="Beranda"
-                    code="SCR-02"
-                    subtitle="Menu dan ringkasan sesuai peran"
-                  />
-                }
-              />
+              {/* Milik A — Semua role (SCR-02) */}
+              <Route path="/beranda" element={<BerandaPage />} />
 
               {/* Milik A — Khusus ADMIN */}
               <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
-                <Route
-                  path="/pengguna"
-                  element={
-                    <PlaceholderPage
-                      title="Manajemen Pengguna"
-                      code="SCR-03"
-                      subtitle="Akun, kunci akun, dan permintaan reset password"
-                    />
-                  }
-                />
-                <Route
-                  path="/log-aktivitas"
-                  element={
-                    <PlaceholderPage
-                      title="Log Aktivitas"
-                      code="SCR-23"
-                      subtitle="Hanya dapat dibaca; log tidak dapat diubah atau dihapus"
-                    />
-                  }
-                />
+                <Route path="/pengguna" element={<UsersPage />} />
+                <Route path="/log-aktivitas" element={<ActivityLogsPage />} />
               </Route>
 
               {/* Milik B — Order & Pengiriman */}
@@ -106,17 +70,11 @@ export default function App() {
                   <ProtectedRoute allowedRoles={['MARKETING', 'PIMPINAN']} />
                 }
               >
-                <Route
-                  path="/buyer"
-                  element={<BuyerPage />}
-                />
+                <Route path="/buyer" element={<BuyerPage />} />
               </Route>
 
               <Route element={<ProtectedRoute allowedRoles={['MARKETING']} />}>
-                <Route
-                  path="/order/baru"
-                  element={<OrderNewPage />}
-                />
+                <Route path="/order/baru" element={<OrderNewPage />} />
               </Route>
 
               <Route
@@ -126,22 +84,13 @@ export default function App() {
                   />
                 }
               >
-                <Route
-                  path="/order"
-                  element={<OrderListPage />}
-                />
+                <Route path="/order" element={<OrderListPage />} />
                 <Route path="/order/:id" element={<OrderDetailPage />} />
               </Route>
 
               <Route element={<ProtectedRoute allowedRoles={['PIMPINAN']} />}>
-                <Route
-                  path="/persetujuan"
-                  element={<ApprovalPage />}
-                />
-                <Route
-                  path="/dashboard"
-                  element={<DashboardPage />}
-                />
+                <Route path="/persetujuan" element={<ApprovalPage />} />
+                <Route path="/dashboard" element={<DashboardPage />} />
               </Route>
 
               <Route
@@ -149,10 +98,7 @@ export default function App() {
                   <ProtectedRoute allowedRoles={['PPIC', 'PIMPINAN']} />
                 }
               >
-                <Route
-                  path="/pengiriman"
-                  element={<ShipmentPage />}
-                />
+                <Route path="/pengiriman" element={<ShipmentPage />} />
                 <Route
                   path="/pengiriman/:id/surat-jalan"
                   element={<DeliveryNotePage />}
