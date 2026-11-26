@@ -1,96 +1,173 @@
-import { Link } from 'react-router-dom';
-import { Alert, Badge, Table, type TableColumn } from '../../components/ui';
-import { formatDate, formatNumber, formatPercent } from '../../lib/format';
+import { useMemo, useState } from 'react';
+import { Badge, Select } from '../../components/ui';
+import { formatDate, formatNumber, formatPercent, formatStatus } from '../../lib/format';
 import { orderApi, type DashboardData } from '../../lib/api/order';
-import { PageHeader, useLoad } from './shared';
+import { validateDateRange } from '../../lib/validation';
+import { DataTable, PageHeader, useLoad, type Col } from './shared';
 
-// SCR-14 Dashboard Pimpinan (FSD 2.14). Angka kartu dihitung backend dari baris yang sama dengan tabel.
+// SCR-14 Dashboard Pimpinan (FSD 2.14, mockup Gambar 3.14).
+// Filter dan kartu dihitung dari baris yang sama dengan tabel, supaya angkanya selalu cocok.
 
 type Row = DashboardData['orders'][number];
 
-function Bar({ value, tone }: { value: number; tone: string }) {
-  const width = Math.max(0, Math.min(100, value));
+const FINAL = ['SELESAI', 'DITOLAK', 'DITARIK', 'DIBATALKAN'];
+const ACTIVE = ['MENUNGGU_PERSETUJUAN', 'DISETUJUI', 'DALAM_PRODUKSI'];
+
+function Flags({ r }: { r: Pick<Row, 'is_at_risk' | 'is_over_reject'> }) {
+  if (!r.is_at_risk && !r.is_over_reject) return <span className="text-ink-subtle">—</span>;
   return (
-    <div className="flex items-center gap-2">
-      <div className="h-2 w-24 overflow-hidden rounded-full bg-surface-muted">
-        <div className={`h-full ${tone}`} style={{ width: `${width}%` }} />
-      </div>
-      <span className="text-xs text-ink-muted">{formatPercent(value)}</span>
+    <div className="flex flex-wrap gap-1">
+      {r.is_at_risk && <Badge tone="danger">Berisiko Terlambat</Badge>}
+      {r.is_over_reject && <Badge tone="warning">Melebihi Reject</Badge>}
     </div>
   );
 }
 
 export default function DashboardPage() {
   const dash = useLoad(() => orderApi.dashboard(), []);
-  const s = dash.data?.summary;
+  const [filter, setFilter] = useState({ buyer: '', status: 'AKTIF', from: '', to: '' });
+  const [selected, setSelected] = useState<Row | null>(null);
+  const dateError = validateDateRange(filter.from, filter.to);
 
-  const cards = s
-    ? [
-        { label: 'Menunggu persetujuan', value: s.waiting_approval, tone: 'text-warning' },
-        { label: 'Disetujui', value: s.approved, tone: 'text-success' },
-        { label: 'Dalam produksi', value: s.in_production, tone: 'text-info' },
-        { label: 'Selesai', value: s.finished, tone: 'text-success' },
-        { label: 'Berisiko terlambat', value: s.at_risk, tone: 'text-danger' },
-        { label: 'Melebihi batas reject', value: s.over_reject, tone: 'text-danger' },
-      ]
-    : [];
+  const all = useMemo(() => dash.data?.orders ?? [], [dash.data]);
+  const buyers = useMemo(() => [...new Set(all.map((r) => r.buyer_name))].sort(), [all]);
 
-  const columns: TableColumn<Row>[] = [
-    {
-      key: 'order_code',
-      header: 'Order',
-      render: (r) => (
-        <Link to={`/order/${r.order_id}`} className="font-medium text-brand hover:underline">
-          {r.order_code}
-        </Link>
-      ),
-    },
-    { key: 'buyer_name', header: 'Buyer' },
-    { key: 'deadline', header: 'Deadline', render: (r) => formatDate(r.deadline) },
-    { key: 'status', header: 'Status', render: (r) => <Badge status={r.status} /> },
-    { key: 'completion_pct', header: 'Progres produksi', render: (r) => <Bar value={r.completion_pct} tone="bg-brand" /> },
-    { key: 'time_pct', header: 'Waktu terpakai', render: (r) => <Bar value={r.time_pct} tone="bg-warning" /> },
-    { key: 'reject_pct', header: 'Reject', align: 'right', render: (r) => formatPercent(r.reject_pct) },
-    {
-      key: 'flags',
-      header: 'Tanda',
-      render: (r) => (
-        <div className="flex flex-wrap gap-1">
-          {r.is_at_risk && <Badge tone="danger">Berisiko</Badge>}
-          {r.is_over_reject && <Badge tone="warning">Reject tinggi</Badge>}
-          {!r.is_at_risk && !r.is_over_reject && <span className="text-xs text-ink-subtle">-</span>}
-        </div>
-      ),
-    },
-    { key: 'remaining_shipment', header: 'Sisa kirim', align: 'right', render: (r) => formatNumber(r.remaining_shipment) },
+  // 1-3. Filter buyer, status, periode deadline
+  const rows = useMemo(
+    () =>
+      all.filter((r) => {
+        if (filter.buyer && r.buyer_name !== filter.buyer) return false;
+        if (filter.status === 'AKTIF' && FINAL.includes(r.status)) return false;
+        if (filter.status && filter.status !== 'AKTIF' && r.status !== filter.status) return false;
+        if (!dateError && filter.from && r.deadline < filter.from) return false;
+        if (!dateError && filter.to && r.deadline > filter.to) return false;
+        return true;
+      }),
+    [all, filter, dateError],
+  );
+
+  // 4. Kartu ringkasan
+  const cards = [
+    { label: 'Order aktif', value: rows.filter((r) => ACTIVE.includes(r.status)).length, color: 'border-l-info text-info' },
+    { label: 'Berisiko terlambat', value: rows.filter((r) => r.is_at_risk).length, color: 'border-l-danger text-danger' },
+    { label: 'Melebihi batas reject', value: rows.filter((r) => r.is_over_reject).length, color: 'border-l-warning text-warning' },
+    { label: 'Sisa kiriman (pcs)', value: rows.reduce((a, r) => a + r.remaining_shipment, 0), color: 'border-l-ink text-ink' },
   ];
 
+  const columns: Col<Row>[] = [
+    { key: 'kode', header: 'Kode Order', render: (r) => r.order_code },
+    { key: 'buyer', header: 'Buyer', render: (r) => r.buyer_name },
+    { key: 'deadline', header: 'Deadline', render: (r) => formatDate(r.deadline) },
+    { key: 'status', header: 'Status', render: (r) => <Badge status={r.status} /> },
+    { key: 'selesai', header: '% selesai', align: 'right', render: (r) => formatPercent(r.completion_pct) },
+    { key: 'waktu', header: '% waktu', align: 'right', render: (r) => formatPercent(r.time_pct) },
+    { key: 'sisa', header: 'Sisa kiriman', align: 'right', render: (r) => formatNumber(r.remaining_shipment) },
+    { key: 'tanda', header: 'Tanda', render: (r) => <Flags r={r} /> },
+  ];
+
+  const current = selected && rows.some((r) => r.order_id === selected.order_id) ? selected : null;
+
   return (
-    <div className="space-y-5">
-      <PageHeader code="SCR-14" title="Dashboard Pimpinan" />
+    <div>
+      <PageHeader code="SCR-14" title="Dashboard" subtitle="Data diperbarui ≤ 1 menit setelah progres/QC disimpan" />
 
-      {dash.error ? (
-        <Alert variant="danger" title="Gagal memuat data" message={dash.error} onRetry={dash.reload} />
-      ) : (
-        <>
-          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            {(dash.loading ? Array.from({ length: 6 }, (_, i) => ({ label: '...', value: 0, tone: '', key: i })) : cards).map((c, i) => (
-              <div key={i} className="rounded-xl border border-line bg-surface p-4 shadow-xs">
-                <p className="text-xs text-ink-muted">{c.label}</p>
-                <p className={`mt-1 text-2xl font-semibold ${c.tone}`}>{dash.loading ? '–' : c.value}</p>
-              </div>
-            ))}
+      <div className="mb-5 grid gap-4 md:grid-cols-[1fr_1fr_1.1fr]">
+        <Select
+          label="Buyer"
+          value={filter.buyer}
+          onChange={(e) => setFilter({ ...filter, buyer: e.target.value })}
+          options={[{ value: '', label: 'Semua buyer' }, ...buyers.map((b) => ({ value: b, label: b }))]}
+        />
+        <Select
+          label="Status"
+          value={filter.status}
+          onChange={(e) => setFilter({ ...filter, status: e.target.value })}
+          options={[
+            { value: 'AKTIF', label: 'Semua status aktif' },
+            { value: '', label: 'Semua status' },
+            ...[...ACTIVE, ...FINAL].map((s) => ({ value: s, label: formatStatus(s) })),
+          ]}
+        />
+        <div>
+          <p className="mb-1.5 text-sm font-medium text-ink">Periode deadline</p>
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm"
+              value={filter.from}
+              onChange={(e) => setFilter({ ...filter, from: e.target.value })}
+            />
+            <span className="text-ink-muted">–</span>
+            <input
+              type="date"
+              className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm"
+              value={filter.to}
+              onChange={(e) => setFilter({ ...filter, to: e.target.value })}
+            />
           </div>
+          {dateError && <p className="mt-1 text-xs text-danger">{dateError}</p>}
+        </div>
+      </div>
 
-          <Table
-            columns={columns}
-            data={dash.data?.orders ?? []}
-            rowKey={(r) => r.order_id}
-            loading={dash.loading}
-            emptyMessage="Belum ada order aktif."
-          />
-        </>
+      <div className="mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {cards.map((c) => (
+          <div key={c.label} className={`rounded-2xl border border-line border-l-4 bg-surface p-5 ${c.color.split(' ')[0]}`}>
+            <p className="text-sm font-medium text-ink-muted">{c.label}</p>
+            <p className={`mt-1 text-4xl font-bold ${c.color.split(' ')[1]}`}>{dash.loading ? '–' : formatNumber(c.value)}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* 5. Tabel order */}
+      <DataTable
+        columns={columns}
+        rows={rows}
+        rowKey={(r) => r.order_id}
+        selectedKey={current?.order_id}
+        onRowClick={setSelected}
+        loading={dash.loading}
+        error={dash.error}
+        onRetry={dash.reload}
+        emptyMessage="Tidak ada order yang sesuai filter."
+      />
+
+      {/* 6. Style dari order terpilih */}
+      {current ? (
+        <StyleSection key={current.order_id} row={current} />
+      ) : (
+        !dash.loading && rows.length > 0 && <p className="mt-4 text-xs text-ink-muted">Klik salah satu order untuk melihat progres per style.</p>
       )}
+    </div>
+  );
+}
+
+function StyleSection({ row }: { row: Row }) {
+  const order = useLoad(() => orderApi.order(row.order_id), [row.order_id]);
+  type D = NonNullable<typeof order.data>['details'][number];
+
+  return (
+    <div className="mt-6">
+      <h2 className="mb-3 text-xl font-semibold text-ink">Style ({row.order_code})</h2>
+      <DataTable
+        columns={[
+          { key: 'style', header: 'Style', render: (d: D) => d.item_code },
+          { key: 'nama', header: 'Nama', render: (d: D) => `${d.buyer_style_name ?? d.item_name} (${d.color})` },
+          { key: 'selesai', header: '% selesai', align: 'right', render: (d: D) => formatPercent(d.completion_pct) },
+          { key: 'waktu', header: '% waktu', align: 'right', render: () => formatPercent(row.time_pct) },
+          {
+            key: 'tanda',
+            header: 'Tanda',
+            // Style tertinggal bila progresnya lebih kecil dari waktu yang sudah terpakai
+            render: (d: D) => (d.completion_pct < row.time_pct && row.status === 'DALAM_PRODUKSI' ? <Badge tone="danger">Berisiko</Badge> : <span className="text-ink-subtle">—</span>),
+          },
+        ]}
+        rows={order.data?.details ?? []}
+        rowKey={(d) => d.id}
+        loading={order.loading}
+        error={order.error}
+        onRetry={order.reload}
+        emptyMessage="Order ini belum memiliki style."
+      />
     </div>
   );
 }

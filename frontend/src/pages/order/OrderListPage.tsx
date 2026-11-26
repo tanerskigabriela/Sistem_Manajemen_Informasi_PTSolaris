@@ -1,50 +1,38 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Badge, Button, Input, Select, Table, type TableColumn } from '../../components/ui';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Alert, Badge, Button, Select } from '../../components/ui';
 import { useAuth } from '../../contexts/AuthContext';
-import { formatCurrency, formatDate, formatNumber, formatStatus } from '../../lib/format';
+import { formatDate, formatStatus } from '../../lib/format';
 import { orderApi, type OrderSummary } from '../../lib/api/order';
-import { validateDateRange } from '../../lib/validation';
-import { PageHeader, useLoad } from './shared';
+import OrderDetailPanel from './OrderDetailPanel';
+import { Card, DataTable, PageHeader, useLoad, type Col } from './shared';
 
-// SCR-06 Daftar Order (FSD 2.5)
+// SCR-06 Daftar dan Detail Order (FSD 2.5, mockup Gambar 3.6).
+// Kiri: filter + daftar order. Kanan: detail order yang dipilih (/order/:id).
 
 const STATUSES = ['MENUNGGU_PERSETUJUAN', 'DISETUJUI', 'DALAM_PRODUKSI', 'SELESAI', 'DITOLAK', 'DITARIK', 'DIBATALKAN'];
 
 export default function OrderListPage() {
-  const { user } = useAuth();
+  const { id } = useParams();
   const navigate = useNavigate();
-  const [filter, setFilter] = useState({ q: '', status: '', date_from: '', date_to: '' });
-  const [applied, setApplied] = useState({ ...filter, page: 1 });
-  const [dateError, setDateError] = useState<string | null>(null);
+  const location = useLocation();
+  const { user } = useAuth();
+  const role = user?.role_code;
+  // GET /buyers hanya untuk MARKETING dan PIMPINAN, role lain tidak diberi filter buyer
+  const canFilterBuyer = role === 'MARKETING' || role === 'PIMPINAN';
 
-  const list = useLoad(() => orderApi.orders(applied), [applied]);
+  const [filter, setFilter] = useState({ buyer_id: '', status: '', page: 1 });
+  const list = useLoad(() => orderApi.orders(filter), [filter]);
+  const buyers = useLoad(
+    () => (canFilterBuyer ? orderApi.buyers({ per_page: 100 }) : Promise.resolve({ rows: [] })),
+    [canFilterBuyer],
+  );
+  const flash = (location.state as { flash?: string } | null)?.flash ?? null;
 
-  function applyFilter() {
-    const err = validateDateRange(filter.date_from, filter.date_to);
-    setDateError(err);
-    if (!err) setApplied({ ...filter, page: 1 });
-  }
-
-  const columns: TableColumn<OrderSummary>[] = [
-    {
-      key: 'order_code',
-      header: 'Kode Order',
-      render: (o) => (
-        <Link to={`/order/${o.order_id}`} className="font-medium text-brand hover:underline">
-          {o.order_code}
-        </Link>
-      ),
-    },
-    { key: 'buyer_name', header: 'Buyer', render: (o) => `${o.buyer_code} — ${o.buyer_name}` },
-    { key: 'order_date', header: 'Tanggal', render: (o) => formatDate(o.order_date) },
+  const columns: Col<OrderSummary>[] = [
+    { key: 'order_code', header: 'Kode Order', render: (o) => o.order_code },
+    { key: 'buyer', header: 'Buyer', render: (o) => <span title={o.buyer_name}>{o.buyer_code}</span> },
     { key: 'deadline', header: 'Deadline', render: (o) => formatDate(o.deadline) },
-    { key: 'level_code', header: 'Level', render: (o) => formatStatus(o.level_code) },
-    { key: 'total_qty', header: 'Jumlah', align: 'right', render: (o) => formatNumber(o.total_qty) },
-    // total_value tidak dikirim backend untuk role selain MARKETING dan PIMPINAN
-    ...(user?.role_code === 'MARKETING' || user?.role_code === 'PIMPINAN'
-      ? [{ key: 'total_value', header: 'Nilai', align: 'right' as const, render: (o: OrderSummary) => formatCurrency(o.total_value, o.currency) }]
-      : []),
     { key: 'status', header: 'Status', render: (o) => <Badge status={o.status} /> },
   ];
 
@@ -52,34 +40,77 @@ export default function OrderListPage() {
     <div>
       <PageHeader
         code="SCR-06"
-        title="Daftar Order"
-        actions={user?.role_code === 'MARKETING' && <Button onClick={() => navigate('/order/baru')}>+ Order Baru</Button>}
+        title="Daftar dan Detail Order"
+        subtitle="Status dan riwayat setiap order"
+        actions={role === 'MARKETING' && <Button onClick={() => navigate('/order/baru')}>+ Order Baru</Button>}
       />
 
-      <div className="mb-4 grid gap-3 rounded-xl border border-line bg-surface p-4 sm:grid-cols-5">
-        <Input placeholder="Cari kode order / buyer" value={filter.q} onChange={(e) => setFilter({ ...filter, q: e.target.value })} />
-        <Select
-          placeholder="Semua status"
-          value={filter.status}
-          onChange={(e) => setFilter({ ...filter, status: e.target.value })}
-          options={STATUSES.map((s) => ({ value: s, label: formatStatus(s) }))}
-        />
-        <Input type="date" value={filter.date_from} onChange={(e) => setFilter({ ...filter, date_from: e.target.value })} error={dateError ?? undefined} />
-        <Input type="date" value={filter.date_to} onChange={(e) => setFilter({ ...filter, date_to: e.target.value })} />
-        <Button onClick={applyFilter}>Terapkan</Button>
+      {flash && <Alert className="mb-4" variant="success" message={flash} onClose={() => navigate(location.pathname, { replace: true })} />}
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Card className="self-start">
+          {/* 1. Filter */}
+          <div className="mb-5 grid gap-3 sm:grid-cols-2">
+            {canFilterBuyer && (
+              <Select
+                label="Buyer"
+                value={filter.buyer_id}
+                onChange={(e) => setFilter({ ...filter, buyer_id: e.target.value, page: 1 })}
+                options={[{ value: '', label: 'Semua' }, ...(buyers.data?.rows ?? []).map((b) => ({ value: b.id, label: `${b.buyer_name} (${b.buyer_code})` }))]}
+              />
+            )}
+            <Select
+              label="Status"
+              value={filter.status}
+              onChange={(e) => setFilter({ ...filter, status: e.target.value, page: 1 })}
+              options={[{ value: '', label: 'Semua' }, ...STATUSES.map((s) => ({ value: s, label: formatStatus(s) }))]}
+            />
+          </div>
+
+          {/* 2. Daftar order */}
+          <DataTable
+            columns={columns}
+            rows={list.data?.rows ?? []}
+            rowKey={(o) => o.order_id}
+            selectedKey={id}
+            onRowClick={(o) => navigate(`/order/${o.order_id}`)}
+            loading={list.loading}
+            error={list.error}
+            onRetry={list.reload}
+            emptyMessage="Belum ada order yang sesuai filter."
+          />
+          {list.data?.meta && list.data.meta.last_page > 1 && (
+            <div className="mt-3 flex items-center justify-end gap-2 text-xs text-ink-muted">
+              <Button size="sm" variant="secondary" disabled={filter.page <= 1} onClick={() => setFilter({ ...filter, page: filter.page - 1 })}>
+                Sebelumnya
+              </Button>
+              Halaman {filter.page} dari {list.data.meta.last_page}
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={filter.page >= list.data.meta.last_page}
+                onClick={() => setFilter({ ...filter, page: filter.page + 1 })}
+              >
+                Berikutnya
+              </Button>
+            </div>
+          )}
+
+          {/* 9. Catatan order final */}
+          <div className="mt-5 rounded-lg border-l-4 border-warning bg-warning-soft px-4 py-3 text-xs text-ink">
+            Order Ditolak dan Ditarik bersifat final: hanya dapat dilihat. Untuk mengajukan ulang, catat order baru.
+          </div>
+        </Card>
+
+        {/* 3-8. Detail order terpilih */}
+        <Card className="self-start">
+          {id ? (
+            <OrderDetailPanel key={id} id={id} onChanged={list.reload} />
+          ) : (
+            <p className="py-10 text-center text-sm text-ink-muted">Pilih salah satu order di daftar untuk melihat detailnya.</p>
+          )}
+        </Card>
       </div>
-
-      <Table
-        columns={columns}
-        data={list.data?.rows ?? []}
-        rowKey={(o) => o.order_id}
-        loading={list.loading}
-        error={list.error}
-        onRetry={list.reload}
-        emptyMessage="Belum ada order yang sesuai filter."
-        meta={list.data?.meta}
-        onPageChange={(page) => setApplied({ ...applied, page })}
-      />
     </div>
   );
 }

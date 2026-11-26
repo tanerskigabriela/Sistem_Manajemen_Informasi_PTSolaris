@@ -274,7 +274,7 @@ export const orderApi = {
     return { data: res.data.data, message: res.data.message };
   },
 
-  orders: (params: { page?: number; q?: string; status?: string; date_from?: string; date_to?: string }) =>
+  orders: (params: { page?: number; per_page?: number; q?: string; status?: string; buyer_id?: string; date_from?: string; date_to?: string }) =>
     getPaged<OrderSummary>('/orders', clean(params)),
   order: (id: string) => get<OrderDetail>(`/orders/${id}`),
   createOrder: (body: NewOrderInput) => post<{ id: string; order_code: string }>('/orders', body),

@@ -1,10 +1,31 @@
 import { Link, useParams } from 'react-router-dom';
 import { Alert, Button } from '../../components/ui';
 import { formatDate, formatNumber } from '../../lib/format';
-import { orderApi } from '../../lib/api/order';
-import { useLoad } from './shared';
+import { orderApi, type DeliveryNote } from '../../lib/api/order';
+import { sortSizes, useLoad } from './shared';
 
-// SCR-17 Surat Jalan (FSD 2.15). Halaman siap cetak, tanpa harga.
+// SCR-17 Surat Jalan (FSD 2.15, mockup Gambar 3.17). Siap cetak, tanpa harga.
+// Backend mengirim satu baris per ukuran; di sini digabung jadi satu baris per style dengan kolom ukuran.
+
+interface Line {
+  item_code: string;
+  item_name: string;
+  color: string;
+  qty: Record<string, number>;
+  total: number;
+}
+
+function toLines(items: DeliveryNote['items']): Line[] {
+  const map = new Map<string, Line>();
+  for (const it of items) {
+    const key = `${it.item_code}|${it.color}`;
+    const line = map.get(key) ?? { item_code: it.item_code, item_name: it.item_name, color: it.color, qty: {}, total: 0 };
+    line.qty[it.size] = (line.qty[it.size] ?? 0) + it.qty;
+    line.total += it.qty;
+    map.set(key, line);
+  }
+  return [...map.values()];
+}
 
 export default function DeliveryNotePage() {
   const { id = '' } = useParams();
@@ -15,88 +36,109 @@ export default function DeliveryNotePage() {
   if (note.error || !n)
     return <Alert variant="danger" title="Gagal memuat data" message={note.error ?? 'Data tidak ditemukan.'} onRetry={note.reload} />;
 
-  return (
-    <div className="space-y-4">
-      <div className="flex justify-between print:hidden">
-        <Link to="/pengiriman" className="text-sm text-brand hover:underline">
-          ← Kembali ke Pengiriman
-        </Link>
-        <Button onClick={() => window.print()}>Cetak</Button>
-      </div>
+  const lines = toLines(n.items);
+  const sizes = sortSizes(n.items.map((it) => it.size));
 
-      <div className="mx-auto max-w-3xl rounded-xl border border-line bg-surface p-8 text-sm text-ink print:border-0 print:p-0">
-        <div className="flex justify-between border-b border-line-strong pb-4">
+  return (
+    <div className="space-y-5">
+      <Link to="/pengiriman" className="text-sm text-brand hover:underline print:hidden">
+        ← Kembali ke Pengiriman
+      </Link>
+
+      <div className="mx-auto max-w-4xl rounded-xl border border-line bg-surface p-8 text-sm text-ink shadow-md print:border-0 print:p-0 print:shadow-none">
+        {/* 1. Kop surat */}
+        <div className="flex items-start justify-between border-b-2 border-ink pb-3">
           <div>
-            <p className="text-lg font-bold">{n.factory_name}</p>
-            <p className="text-ink-muted">{n.factory_address}, {n.factory_city}</p>
-            <p className="text-ink-muted">Telp. {n.factory_phone}</p>
+            <p className="text-2xl font-bold">{n.factory_name}</p>
+            <p className="text-ink-muted">{n.factory_city}</p>
           </div>
           <div className="text-right">
-            <p className="text-lg font-bold">SURAT JALAN</p>
-            <p className="font-mono">{n.delivery_note_no}</p>
-            <p>Tanggal: {formatDate(n.ship_date)}</p>
+            <p className="text-2xl font-bold">SURAT JALAN</p>
+            <p className="font-semibold">No. {n.delivery_note_no}</p>
           </div>
         </div>
 
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div>
-            <p className="text-xs text-ink-muted">Kepada</p>
-            <p className="font-medium">{n.buyer_name}</p>
-            <p>{n.destination_address}</p>
-            <p>Telp. {n.buyer_phone}</p>
-          </div>
-          <div>
-            <p className="text-xs text-ink-muted">Referensi</p>
-            <p>Order: {n.order_code}</p>
-            <p>PO buyer: {n.buyer_po_no ?? '-'}</p>
-            <p>Ekspedisi: {n.expedition_name} ({n.expedition_contact}, {n.expedition_phone})</p>
-            <p>Kendaraan: {n.plate_no ?? '-'} · Dari gudang: {n.warehouse_name}</p>
-          </div>
+        {/* 2. Data pengiriman */}
+        <div className="mt-4 grid gap-x-10 gap-y-2 sm:grid-cols-2">
+          <Row label="Tanggal" value={formatDate(n.ship_date)} />
+          <Row label="Kode order" value={n.order_code} />
+          <Row label="Buyer" value={n.buyer_name} />
+          <Row label="Ekspedisi" value={n.expedition_name} />
+          <Row label="Alamat tujuan" value={n.destination_address} />
+          <Row label="PO buyer" value={n.buyer_po_no ?? '-'} />
         </div>
 
-        <table className="mt-6 w-full border-collapse text-sm">
-          <thead>
-            <tr className="border-y border-line-strong text-left">
-              <th className="py-2">No</th>
-              <th>Kode Barang</th>
-              <th>Nama Barang</th>
-              <th>Warna</th>
-              <th>Ukuran</th>
-              <th className="text-right">Jumlah</th>
+        {/* 3. Daftar barang */}
+        <table className="mt-6 w-full text-sm">
+          <thead className="bg-brand-soft text-xs font-semibold">
+            <tr>
+              <th className="px-2 py-2.5 text-left">No</th>
+              <th className="px-2 py-2.5 text-left">Kode barang</th>
+              <th className="px-2 py-2.5 text-left">Nama style</th>
+              <th className="px-2 py-2.5 text-left">Warna</th>
+              {sizes.map((z) => (
+                <th key={z} className="px-2 py-2.5 text-left">
+                  {z}
+                </th>
+              ))}
+              <th className="px-2 py-2.5 text-left">Jumlah</th>
             </tr>
           </thead>
           <tbody>
-            {n.items.map((it) => (
-              <tr key={it.line_no} className="border-b border-line">
-                <td className="py-1.5">{it.line_no}</td>
-                <td>{it.item_code}</td>
-                <td>{it.item_name}</td>
-                <td>{it.color}</td>
-                <td>{it.size}</td>
-                <td className="text-right">{formatNumber(it.qty)}</td>
+            {lines.map((l, i) => (
+              <tr key={`${l.item_code}|${l.color}`} className="border-b border-line">
+                <td className="px-2 py-2">{i + 1}</td>
+                <td className="px-2 py-2">{l.item_code}</td>
+                <td className="px-2 py-2">{l.item_name}</td>
+                <td className="px-2 py-2">{l.color}</td>
+                {sizes.map((z) => (
+                  <td key={z} className="px-2 py-2">
+                    {l.qty[z] ? formatNumber(l.qty[z]) : ''}
+                  </td>
+                ))}
+                <td className="px-2 py-2">{formatNumber(l.total)}</td>
               </tr>
             ))}
             <tr className="font-semibold">
-              <td colSpan={5} className="py-2 text-right">Total</td>
-              <td className="text-right">{formatNumber(n.total_qty)} pcs</td>
+              <td colSpan={4 + sizes.length} className="px-2 py-2 text-right">
+                Total
+              </td>
+              <td className="px-2 py-2">{formatNumber(n.total_qty)}</td>
             </tr>
           </tbody>
         </table>
-
         <p className="mt-2 text-xs text-ink-muted">
-          Jumlah koli: {n.package_count ?? '-'} · Berat: {n.total_weight_kg ?? '-'} kg · Perkiraan tiba: {formatDate(n.estimated_arrival)}
+          Jumlah koli: {n.package_count ?? '-'} · Kendaraan: {n.plate_no ?? '-'} · Perkiraan tiba: {formatDate(n.estimated_arrival)}
         </p>
 
-        <div className="mt-12 grid grid-cols-3 gap-4 text-center">
-          {['Dibuat oleh', 'Pengirim (ekspedisi)', 'Penerima'].map((label, i) => (
+        {/* 4. Tanda tangan */}
+        <div className="mt-14 grid grid-cols-3 gap-6">
+          {['Dibuat oleh (PPIC)', 'Pengemudi / Ekspedisi', 'Penerima (Buyer)'].map((label, i) => (
             <div key={label}>
-              <p>{label}</p>
+              <p className="font-semibold">{label}</p>
               <div className="h-16" />
-              <p className="border-t border-line-strong pt-1">{i === 0 ? n.recorded_by_name : '(............................)'}</p>
+              <div className="w-4/5 border-t border-ink" />
+              <p className="mt-1 text-xs">({i === 0 ? n.recorded_by_name : '..............................'})</p>
             </div>
           ))}
         </div>
       </div>
+
+      {/* 5. Cetak */}
+      <div className="flex justify-center print:hidden">
+        <Button size="lg" className="px-10" onClick={() => window.print()}>
+          Cetak
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid grid-cols-[7rem_1fr]">
+      <span className="text-ink-muted">{label}</span>
+      <span className="font-semibold">: {value}</span>
     </div>
   );
 }
