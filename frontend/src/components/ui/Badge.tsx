@@ -16,12 +16,12 @@ export interface BadgeProps {
 }
 
 const TONE_CLASSES: Record<BadgeTone, string> = {
-  neutral: 'bg-surface-muted text-ink-muted border-line',
-  brand: 'bg-brand-soft text-brand-ink border-brand/20',
-  info: 'bg-info-soft text-info border-info/20',
-  success: 'bg-success-soft text-success border-success/20',
-  warning: 'bg-warning-soft text-warning border-warning/20',
-  danger: 'bg-danger-soft text-danger border-danger/20',
+  neutral: 'bg-neutral-soft text-neutral-ink border-transparent',
+  brand: 'bg-pale-gold text-brand-ink border-solar-amber/30',
+  info: 'bg-info-soft text-info border-transparent',
+  success: 'bg-success-soft text-success border-transparent',
+  warning: 'bg-warning-soft text-warning border-transparent',
+  danger: 'bg-danger-soft text-danger border-transparent',
 };
 
 export function Badge({
@@ -36,7 +36,7 @@ export function Badge({
   return (
     <span
       className={[
-        'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap',
+        'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap',
         TONE_CLASSES[resolvedTone],
         className,
       ].join(' ')}

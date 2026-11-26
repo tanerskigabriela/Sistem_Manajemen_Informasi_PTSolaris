@@ -1,43 +1,52 @@
 @import "tailwindcss";
 
 @theme {
-  /* Tipografi */
+  /* Tipografi — FSD Gambar 3.0 (Solaris Eternal Apparels Design System) */
+  --font-display: "Bodoni Moda", Georgia, "Times New Roman", serif;
   --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Warna dasar permukaan & teks */
-  --color-canvas: #f8fafc;
-  --color-surface: #ffffff;
-  --color-surface-muted: #f1f5f9;
-  --color-ink: #0f172a;
-  --color-ink-muted: #475569;
-  --color-ink-subtle: #64748b;
-  --color-line: #e2e8f0;
-  --color-line-strong: #cbd5e1;
+  /* Warna Dasar Permukaan & Teks — Solar Amber */
+  --color-canvas: #faf8f3;        /* Soft Ivory (latar) */
+  --color-surface: #fffcf7;       /* Surface (kartu) */
+  --color-surface-muted: #f5f0e6; /* Baris Zebra / soft surface */
+  --color-zebra: #f5f0e6;         /* Baris Zebra tabel */
+  --color-amber-tint: #fbf4e5;    /* Amber Tint (header & banner) */
+  --color-pale-gold: #f8e8c5;     /* Pale Gold (header tabel, menu aktif) */
+  --color-ink: #172b3a;           /* Midnight Blue / Ink (teks utama) */
+  --color-ink-muted: #5e646b;     /* Muted (teks sekunder) */
+  --color-ink-subtle: #7a8189;    /* Placeholder / hint */
+  --color-line: #e1d8c9;          /* Border */
+  --color-line-strong: #cfc2ad;   /* Border input/hover */
 
-  /* Warna utama brand Solaris (biru navy korporat) */
-  --color-brand: #1d4ed8;
-  --color-brand-hover: #1e40af;
-  --color-brand-soft: #eff6ff;
-  --color-brand-ink: #1e3a8a;
+  /* Warna Utama Brand Solaris */
+  --color-brand: #945000;         /* Primary (tombol) */
+  --color-brand-hover: #7a4200;   /* Primary hover */
+  --color-brand-soft: #fbf4e5;    /* Amber Tint */
+  --color-brand-ink: #945000;     /* Primary text */
+  --color-solar-amber: #e59a18;   /* Solar Amber accent */
 
-  /* Warna sidebar gelap */
-  --color-sidebar: #0f172a;
-  --color-sidebar-hover: #1e293b;
-  --color-sidebar-active: #1d4ed8;
-  --color-sidebar-ink: #e2e8f0;
-  --color-sidebar-muted: #94a3b8;
+  /* Warna Sidebar Hangat — FSD Gambar 3.0 */
+  --color-sidebar: #f7f3ea;       /* Sidebar latar */
+  --color-sidebar-hover: #efe7d6; /* Sidebar hover */
+  --color-sidebar-active: #f8e8c5;/* Pale Gold (menu aktif) */
+  --color-sidebar-ink: #172b3a;   /* Teks menu */
+  --color-sidebar-muted: #5e646b; /* Label seksi MENU */
 
-  /* Warna semantik status */
-  --color-success: #15803d;
-  --color-success-soft: #dcfce7;
-  --color-warning: #b45309;
-  --color-warning-soft: #fef3c7;
-  --color-danger: #b91c1c;
-  --color-danger-hover: #991b1b;
-  --color-danger-soft: #fee2e2;
-  --color-info: #0369a1;
-  --color-info-soft: #e0f2fe;
+  /* Warna Semantik Status — FSD Gambar 3.0 */
+  --color-success: #2e7d32;
+  --color-success-hover: #246628;
+  --color-success-soft: #dff0d8;
+  --color-warning: #8a5200;
+  --color-warning-soft: #ffe9b0;
+  --color-danger: #c0392b;
+  --color-danger-hover: #a22e22;
+  --color-danger-soft: #fbe0dc;
+  --color-info: #1f5fa8;
+  --color-info-soft: #dcebfa;
+  --color-neutral-ink: #475569;
+  --color-neutral-soft: #e2e8f0;
+  --color-annotation: #d6246e;
 }
 
 @layer base {
@@ -45,5 +54,35 @@
     background-color: var(--color-canvas);
     color: var(--color-ink);
     font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  h1,
+  h2 {
+    font-family: var(--font-display);
+    color: var(--color-ink);
+  }
+}
+
+/* Orbs dekoratif lembut untuk layar autentikasi (SCR-01, SCR-19, SCR-20) */
+.solaris-orb {
+  background: radial-gradient(
+    circle at 30% 30%,
+    #fff7e2 0%,
+    #f6dda8 55%,
+    #ecc678 100%
+  );
+  border-radius: 9999px;
+  pointer-events: none;
+}
+
+/* Cetak Surat Jalan (SCR-17) */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background-color: #ffffff !important;
   }
 }
