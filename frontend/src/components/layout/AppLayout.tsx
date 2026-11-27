@@ -158,7 +158,7 @@ export function AppLayout() {
         {/* Sidebar dinamis dari user.menus — FSD Gambar 3.0 (#F7F3EA) */}
         <aside
           className={[
-            'no-print fixed inset-y-0 left-0 z-40 flex w-60 shrink-0 flex-col border-r border-line bg-sidebar text-sidebar-ink transition-transform lg:static lg:translate-x-0',
+            'no-print fixed inset-y-0 left-0 z-40 flex w-60 shrink-0 flex-col border-r border-line bg-sidebar text-sidebar-ink transition-transform lg:sticky lg:top-16 lg:z-20 lg:h-[calc(100vh-4rem)] lg:translate-x-0',
             sidebarOpen ? 'translate-x-0' : '-translate-x-full',
           ].join(' ')}
         >

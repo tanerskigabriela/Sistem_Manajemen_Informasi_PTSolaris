@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme {
-  /* Tipografi — FSD Gambar 3.0 (Solaris Eternal Apparels Design System) */
-  --font-display: "Bodoni Moda", Georgia, "Times New Roman", serif;
+    /* Tipografi — FSD Gambar 3.0 (Solaris Eternal Apparels Design System) */
+  --font-display: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
