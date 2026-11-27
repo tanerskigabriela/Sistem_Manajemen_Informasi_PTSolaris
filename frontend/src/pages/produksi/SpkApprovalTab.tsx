@@ -3,7 +3,7 @@ import { Alert, Button, Textarea } from '../../components/ui';
 import { produksiApi, type SpkRow } from '../../lib/api/produksi';
 import { formatDate, formatNumber } from '../../lib/format';
 import { parseApiError } from '../../lib/http';
-import { MSG_REASON_REQUIRED } from '../../lib/validation';
+import { reasonRequired, validateForm } from '../../lib/validation';
 import ApprovalPage from '../order/ApprovalPage';
 import { Card, DataTable, SuccessButton, sortSizes, useLoad } from '../order/shared';
 
@@ -95,8 +95,9 @@ function SpkDecisionPanel({ row, onDone }: { row: SpkRow; onDone: (message: stri
   }
 
   async function reject() {
-    if (!reason.trim()) {
-      setError(MSG_REASON_REQUIRED);
+    const invalid = validateForm({ reason }, { reason: [reasonRequired()] }).reason;
+    if (invalid) {
+      setError(invalid);
       return;
     }
     setBusy('reject');

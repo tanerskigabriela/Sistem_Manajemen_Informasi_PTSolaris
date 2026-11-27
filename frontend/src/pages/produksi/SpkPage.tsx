@@ -5,9 +5,9 @@ import { orderApi } from '../../lib/api/order';
 import { produksiApi, type SpkRow } from '../../lib/api/produksi';
 import { formatDate, formatNumber, formatStatus } from '../../lib/format';
 import { parseApiError, toFieldErrorMap } from '../../lib/http';
-import { MSG_MUST_CHECK, MSG_POSITIVE_NUMBER, MSG_REQUIRED } from '../../lib/validation';
+import { MSG_POSITIVE_NUMBER, MSG_REQUIRED, mustBeChecked, positiveNumber, required, validateForm } from '../../lib/validation';
 import { Card, DataTable, PageHeader, sortSizes, useLoad, type Col } from '../order/shared';
-import { orderLabel, toNumber, useProductionOrders } from './common';
+import { integerNumber, orderLabel, toNumber, useProductionOrders } from './common';
 
 // SCR-11 Surat Perintah Kerja (FSD-2.10, mockup Gambar 3.11).
 // PPIC: form Ajukan SPK + daftar semua SPK.
@@ -114,15 +114,24 @@ function SubmitSpkForm({ onDone }: { onDone: (message: string) => Promise<void> 
   }
 
   async function submit() {
-    const e: Record<string, string> = {};
-    if (!orderId) e.order = MSG_REQUIRED;
-    if (!styleId) e.order_detail_id = MSG_REQUIRED;
-    if (!lineId) e.line_id = MSG_REQUIRED;
-    if (!targetDate) e.target_date = MSG_REQUIRED;
+    const e = validateForm(
+      { order: orderId, order_detail_id: styleId, line_id: lineId, target_date: targetDate, materials_complete_confirmed: confirmed },
+      {
+        order: [required()],
+        order_detail_id: [required()],
+        line_id: [required()],
+        target_date: [required()],
+        materials_complete_confirmed: [mustBeChecked()],
+      },
+    );
+    // Jumlah per ukuran: setiap baris wajib diisi, bilangan bulat, dan lebih dari 0.
+    const sizeRule = [required(), positiveNumber(), integerNumber(MSG_POSITIVE_NUMBER)];
+    if (sizes.length === 0) e.sizes = MSG_REQUIRED;
+    else {
+      const bad = sizes.map((s) => validateForm({ qty: s.qty }, { qty: sizeRule }).qty).find(Boolean);
+      if (bad) e.sizes = bad;
+    }
     const parsed = sizes.map((s) => ({ size: s.size, qty: toNumber(s.qty) }));
-    if (parsed.length === 0) e.sizes = MSG_REQUIRED;
-    else if (parsed.some((s) => Number.isNaN(s.qty) || s.qty <= 0 || !Number.isInteger(s.qty))) e.sizes = MSG_POSITIVE_NUMBER;
-    if (!confirmed) e.materials_complete_confirmed = MSG_MUST_CHECK;
     setErrors(e);
     if (Object.keys(e).length > 0) return;
 

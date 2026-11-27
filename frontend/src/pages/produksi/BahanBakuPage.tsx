@@ -4,7 +4,7 @@ import { orderApi } from '../../lib/api/order';
 import { produksiApi, type MaterialInput, type OrderMaterial } from '../../lib/api/produksi';
 import { formatDate, formatNumber } from '../../lib/format';
 import { parseApiError, toFieldErrorMap } from '../../lib/http';
-import { MSG_MUST_CHECK, MSG_POSITIVE_NUMBER, MSG_REQUIRED } from '../../lib/validation';
+import { mustBeChecked, positiveNumber, required, validateForm } from '../../lib/validation';
 import { Card, DataTable, PageHeader, today, useLoad, type Col } from '../order/shared';
 import { orderLabel, toNumber, useProductionOrders } from './common';
 
@@ -84,24 +84,27 @@ export default function BahanBakuPage() {
   }
 
   function validate(): Record<string, string> {
-    const e: Record<string, string> = {};
-    if (!orderId) e.order = MSG_REQUIRED;
-    if (!styleId) e.style = MSG_REQUIRED;
-    if (!form.material_id) e.material_id = MSG_REQUIRED;
-    const qty = toNumber(form.qty);
-    if (Number.isNaN(qty)) e.qty = MSG_REQUIRED;
-    else if (qty <= 0) e.qty = MSG_POSITIVE_NUMBER;
-    if (!form.unit.trim()) e.unit = MSG_REQUIRED;
-    if (!form.received_date) e.received_date = MSG_REQUIRED;
-    if (form.source === 'SUPPLIER') {
-      if (!form.supplier_id) e.supplier_id = 'Supplier dan harga bahan wajib diisi untuk bahan dari supplier.';
-      // Saat mengubah, harga lama tidak ditampilkan ke PPIC; kosong berarti harga tidak diubah.
-      const price = toNumber(form.material_price);
-      if (!editing && Number.isNaN(price)) e.material_price = 'Supplier dan harga bahan wajib diisi untuk bahan dari supplier.';
-      else if (!Number.isNaN(price) && price <= 0) e.material_price = MSG_POSITIVE_NUMBER;
-    }
-    if (!form.eligibility_confirmed) e.eligibility_confirmed = MSG_MUST_CHECK;
-    return e;
+    const supplierMsg = 'Supplier dan harga bahan wajib diisi untuk bahan dari supplier.';
+    const fromSupplier = form.source === 'SUPPLIER';
+    // Saat mengubah bahan yang memang dari supplier, harga lama tidak ditampilkan ke PPIC:
+    // kosong berarti harga tidak diubah. Bila asal diubah dari BUYER ke SUPPLIER, harga wajib diisi.
+    const priceRequired = fromSupplier && (!editing || editing.source !== 'SUPPLIER');
+    return validateForm(
+      { order: orderId, style: styleId, ...form, unit: form.unit.trim() },
+      {
+        order: [required()],
+        style: [required()],
+        material_id: [required()],
+        qty: [required(), positiveNumber()],
+        unit: [required()],
+        received_date: [required()],
+        supplier_id: fromSupplier ? [required(supplierMsg)] : [],
+        material_price: fromSupplier
+          ? [...(priceRequired ? [required(supplierMsg)] : []), positiveNumber()]
+          : [],
+        eligibility_confirmed: [mustBeChecked()],
+      },
+    );
   }
 
   async function save() {
@@ -255,7 +258,7 @@ export default function BahanBakuPage() {
           {form.source === 'SUPPLIER' ? (
             <Input
               label="Harga bahan (Rp)"
-              required={!editing}
+              required={!editing || editing.source !== 'SUPPLIER'}
               type="number"
               min={0}
               step="any"
@@ -263,7 +266,7 @@ export default function BahanBakuPage() {
               value={form.material_price}
               onChange={(e) => set('material_price', e.target.value)}
               error={errors.material_price}
-              hint={editing ? 'Kosongkan bila harga tidak berubah.' : `per ${form.unit || 'satuan'}`}
+              hint={editing?.source === 'SUPPLIER' ? 'Kosongkan bila harga tidak berubah.' : `per ${form.unit || 'satuan'}`}
             />
           ) : (
             <div />

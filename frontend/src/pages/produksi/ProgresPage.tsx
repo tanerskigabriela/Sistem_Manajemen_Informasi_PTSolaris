@@ -4,9 +4,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { STAGES, produksiApi, type ProgressEntry, type StageCode, type StageSummary } from '../../lib/api/produksi';
 import { formatDate, formatNumber, formatStatus } from '../../lib/format';
 import { parseApiError, toFieldErrorMap } from '../../lib/http';
-import { MSG_NON_NEGATIVE, MSG_REQUIRED } from '../../lib/validation';
+import { MSG_NON_NEGATIVE, nonNegativeNumber, required, validateForm } from '../../lib/validation';
 import { Card, DataTable, PageHeader, today, useLoad, type Col } from '../order/shared';
-import { spkLabel, toNumber, useApprovedSpk } from './common';
+import { integerNumber, spkLabel, toNumber, useApprovedSpk } from './common';
 
 // SCR-12 Progres Harian (FSD-2.12, mockup Gambar 3.12).
 // Supervisor mencatat; PPIC, Pimpinan, dan QC hanya melihat panel sisa pekerjaan.
@@ -67,13 +67,15 @@ export default function ProgresPage() {
   }
 
   async function save() {
-    const e: Record<string, string> = {};
-    if (!spkId) e.spk = MSG_REQUIRED;
-    if (!workDate) e.work_date = MSG_REQUIRED;
-    const n = toNumber(qty);
-    if (Number.isNaN(n)) e.qty_done = MSG_REQUIRED;
-    else if (n < 0 || !Number.isInteger(n)) e.qty_done = MSG_NON_NEGATIVE;
-    if (needNote && !note.trim()) e.variance_note = 'Wajib diisi';
+    const e = validateForm(
+      { spk: spkId, work_date: workDate, qty_done: qty, variance_note: note },
+      {
+        spk: [required()],
+        work_date: [required()],
+        qty_done: [required(), nonNegativeNumber(), integerNumber(MSG_NON_NEGATIVE)],
+        variance_note: needNote ? [required(MSG_VARIANCE)] : [],
+      },
+    );
     setErrors(e);
     if (Object.keys(e).length > 0) {
       if (e.variance_note && data && cuttingAfter !== null) {
@@ -88,7 +90,7 @@ export default function ProgresPage() {
     setFormError(null);
     setDuplicate(null);
     try {
-      const body = { qty_done: n, variance_note: note.trim() || null };
+      const body = { qty_done: toNumber(qty), variance_note: note.trim() || null };
       const res = editing
         ? await produksiApi.updateProgress(editing.id, body)
         : await produksiApi.addProgress(spkId, { stage_code: stage, work_date: workDate, ...body });
@@ -252,6 +254,8 @@ export default function ProgresPage() {
               rowKey={(x) => x.id}
               selectedKey={editing?.id}
               loading={view.loading}
+              error={view.error}
+              onRetry={view.reload}
               emptyMessage="Belum ada progres untuk SPK ini."
             />
           </Card>

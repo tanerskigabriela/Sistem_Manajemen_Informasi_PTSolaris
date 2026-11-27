@@ -281,7 +281,7 @@ function SupplierMaterials({ supplierId }: { supplierId: string }) {
     <DataTable
       columns={columns}
       rows={data.data ?? []}
-      rowKey={(m) => `${m.order_code}-${m.item_code}-${m.material_code}-${m.received_date}`}
+      rowKey={(m) => `${m.order_code}-${m.item_code}-${m.material_code}-${m.color ?? ''}-${m.received_date}`}
       loading={data.loading}
       error={data.error}
       onRetry={data.reload}

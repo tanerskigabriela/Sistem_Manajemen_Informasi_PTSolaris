@@ -20,35 +20,6 @@ import SpkPage from './pages/produksi/SpkPage';
 import { PersetujuanPage } from './pages/produksi/SpkApprovalTab';
 import SupplierPage from './pages/produksi/SupplierPage';
 
-function PlaceholderPage({
-  title,
-  code,
-  subtitle,
-}: {
-  title: string;
-  code: string;
-  subtitle?: string;
-}) {
-  return (
-    <div>
-      <div className="mb-5">
-        <h1 className="font-display text-[28px] font-semibold leading-tight text-ink sm:text-[32px]">
-          {title}
-        </h1>
-        <p className="mt-1 text-[13px] font-medium text-ink-muted">
-          {[code, subtitle].filter(Boolean).join(' · ')}
-        </p>
-      </div>
-
-      <section className="rounded-2xl border border-line bg-surface p-6">
-        <p className="text-sm text-ink-muted">
-          Halaman ini sedang disiapkan oleh pemilik modul.
-        </p>
-      </section>
-    </div>
-  );
-}
-
 export default function App() {
   return (
     <BrowserRouter>

@@ -4,9 +4,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { QC_STAGES, produksiApi, typeCodeOf, type QcStageSummary, type StageCode } from '../../lib/api/produksi';
 import { formatNumber, formatPercent, formatStatus } from '../../lib/format';
 import { parseApiError, toFieldErrorMap } from '../../lib/http';
-import { MSG_NON_NEGATIVE, MSG_POSITIVE_NUMBER, MSG_REQUIRED } from '../../lib/validation';
+import { MSG_NON_NEGATIVE, MSG_POSITIVE_NUMBER, nonNegativeNumber, positiveNumber, required, validateForm } from '../../lib/validation';
 import { Card, DataTable, PageHeader, today, useLoad, type Col } from '../order/shared';
-import { spkLabel, toNumber, useApprovedSpk } from './common';
+import { integerNumber, spkLabel, toNumber, useApprovedSpk } from './common';
 
 // SCR-13 Hasil QC (FSD-2.13, mockup Gambar 3.13).
 // QC mencatat jumlah barang lolos per SPK, tahap (Cutting s.d. Ironing; Packing tidak ada QC) dan tanggal.
@@ -55,19 +55,22 @@ export default function QcPage() {
   }
 
   async function save() {
-    const e: Record<string, string> = {};
-    if (!spkId) e.spk = MSG_REQUIRED;
-    if (!checkDate) e.check_date = MSG_REQUIRED;
-    if (!standardId) e.standard_id = MSG_REQUIRED;
+    const e = validateForm(
+      { spk: spkId, check_date: checkDate, standard_id: standardId, qty_passed: qty, sample_qty: sample },
+      {
+        spk: [required()],
+        check_date: [required()],
+        standard_id: [required()],
+        qty_passed: [required(), nonNegativeNumber(), integerNumber(MSG_NON_NEGATIVE)],
+        sample_qty: [positiveNumber(), integerNumber(MSG_POSITIVE_NUMBER)],
+      },
+    );
     const n = toNumber(qty);
-    if (Number.isNaN(n)) e.qty_passed = MSG_REQUIRED;
-    else if (n < 0 || !Number.isInteger(n)) e.qty_passed = MSG_NON_NEGATIVE;
-    else if (stageRow && n > stageRow.max_passed_input)
+    if (!e.qty_passed && stageRow && n > stageRow.max_passed_input)
       e.qty_passed = `Jumlah lolos melebihi jumlah selesai pada tahap ini (maksimum: ${stageRow.max_passed_input}).`;
-    const s = toNumber(sample);
-    if (!Number.isNaN(s) && s <= 0) e.sample_qty = MSG_POSITIVE_NUMBER;
-    if (defects.some((d) => !d.defect_type_id)) e.defects = MSG_REQUIRED;
-    else if (defects.some((d) => !(toNumber(d.qty) > 0))) e.defects = MSG_POSITIVE_NUMBER;
+    const defectRule = { defect_type_id: [required()], qty: [required(), positiveNumber(), integerNumber(MSG_POSITIVE_NUMBER)] };
+    const defectError = defects.map((d) => Object.values(validateForm({ defect_type_id: d.defect_type_id, qty: d.qty }, defectRule))[0]).find(Boolean);
+    if (defectError) e.defects = defectError;
     setErrors(e);
     if (Object.keys(e).length > 0) return;
 
@@ -79,7 +82,7 @@ export default function QcPage() {
         check_date: checkDate,
         qty_passed: n,
         standard_id: standardId,
-        sample_qty: Number.isNaN(s) ? null : s,
+        sample_qty: sample.trim() === '' ? null : toNumber(sample),
         defects: defects.map((d) => ({ defect_type_id: d.defect_type_id, qty: toNumber(d.qty) })),
       });
       setFlash(
@@ -107,7 +110,7 @@ export default function QcPage() {
       key: 'tanda',
       header: 'Tanda',
       render: (r) =>
-        r.cumulative_done > 0 && r.failed_pct > limit ? <Badge tone="warning">Melebihi Batas Reject</Badge> : <span className="text-ink-subtle">—</span>,
+        r.cumulative_done > 0 && r.failed_pct > limit ? <Badge status="MELEBIHI_REJECT" /> : <span className="text-ink-subtle">—</span>,
     },
   ];
 
@@ -240,7 +243,7 @@ export default function QcPage() {
                   · reject style {formatPercent(data.style.reject_pct)} dari batas {formatPercent(limit)}
                 </span>
               )}
-              {data?.style.is_over_reject && <Badge tone="warning">Melebihi Batas Reject</Badge>}
+              {data?.style.is_over_reject && <Badge status="MELEBIHI_REJECT" />}
             </span>
           }
         >

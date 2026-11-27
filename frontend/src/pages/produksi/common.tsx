@@ -1,3 +1,4 @@
+import type { FieldValidator } from '../../lib/validation';
 import { orderApi, type OrderSummary } from '../../lib/api/order';
 import { produksiApi, type SpkRow } from '../../lib/api/produksi';
 import { useLoad } from '../order/shared';
@@ -32,6 +33,11 @@ export function toNumber(value: string): number {
 }
 
 /** Pesan di bawah form: kosong, info, atau error. */
-export function Hint({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs text-ink-muted">{children}</p>;
+
+/** Validator tambahan untuk validateForm: angka harus bilangan bulat (jumlah pcs). */
+export function integerNumber(message: string): FieldValidator {
+  return (value) => {
+    if (value === '' || value === null || value === undefined) return null;
+    return Number.isInteger(Number(value)) ? null : message;
+  };
 }
