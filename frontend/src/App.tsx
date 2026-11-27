@@ -4,7 +4,6 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
 import BerandaPage from './pages/admin/BerandaPage';
 import LoginPage from './pages/admin/LoginPage';
-import ApprovalPage from './pages/order/ApprovalPage';
 import BuyerPage from './pages/order/BuyerPage';
 import DashboardPage from './pages/order/DashboardPage';
 import DeliveryNotePage from './pages/order/DeliveryNotePage';
@@ -14,35 +13,12 @@ import OrderNewPage from './pages/order/OrderNewPage';
 import ShipmentPage from './pages/order/ShipmentPage';
 import UsersPage from './pages/admin/UsersPage';
 import ActivityLogsPage from './pages/admin/ActivityLogsPage';
-
-function PlaceholderPage({
-  title,
-  code,
-  subtitle,
-}: {
-  title: string;
-  code: string;
-  subtitle?: string;
-}) {
-  return (
-    <div>
-      <div className="mb-5">
-        <h1 className="font-display text-[28px] font-semibold leading-tight text-ink sm:text-[32px]">
-          {title}
-        </h1>
-        <p className="mt-1 text-[13px] font-medium text-ink-muted">
-          {[code, subtitle].filter(Boolean).join(' · ')}
-        </p>
-      </div>
-
-      <section className="rounded-2xl border border-line bg-surface p-6">
-        <p className="text-sm text-ink-muted">
-          Halaman ini sedang disiapkan oleh pemilik modul.
-        </p>
-      </section>
-    </div>
-  );
-}
+import BahanBakuPage from './pages/produksi/BahanBakuPage';
+import ProgresPage from './pages/produksi/ProgresPage';
+import QcPage from './pages/produksi/QcPage';
+import SpkPage from './pages/produksi/SpkPage';
+import { PersetujuanPage } from './pages/produksi/SpkApprovalTab';
+import SupplierPage from './pages/produksi/SupplierPage';
 
 export default function App() {
   return (
@@ -89,7 +65,7 @@ export default function App() {
               </Route>
 
               <Route element={<ProtectedRoute allowedRoles={['PIMPINAN']} />}>
-                <Route path="/persetujuan" element={<ApprovalPage />} />
+                <Route path="/persetujuan" element={<PersetujuanPage />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
               </Route>
 
@@ -113,26 +89,14 @@ export default function App() {
               >
                 <Route
                   path="/supplier"
-                  element={
-                    <PlaceholderPage
-                      title="Supplier"
-                      code="SCR-09"
-                      subtitle="Data supplier dan bahan yang dipasok"
-                    />
-                  }
+                  element={<SupplierPage />}
                 />
               </Route>
 
               <Route element={<ProtectedRoute allowedRoles={['PPIC']} />}>
                 <Route
                   path="/bahan-baku"
-                  element={
-                    <PlaceholderPage
-                      title="Bahan Baku"
-                      code="SCR-10"
-                      subtitle="Bahan yang dicatat sudah diperiksa dan dinyatakan layak"
-                    />
-                  }
+                  element={<BahanBakuPage />}
                 />
               </Route>
 
@@ -145,23 +109,11 @@ export default function App() {
               >
                 <Route
                   path="/spk"
-                  element={
-                    <PlaceholderPage
-                      title="Surat Perintah Kerja (SPK)"
-                      code="SCR-11"
-                      subtitle="Satu SPK untuk satu style"
-                    />
-                  }
+                  element={<SpkPage />}
                 />
                 <Route
                   path="/progres"
-                  element={
-                    <PlaceholderPage
-                      title="Progres Harian"
-                      code="SCR-12"
-                      subtitle="Formulir yang sama untuk seluruh tahap"
-                    />
-                  }
+                  element={<ProgresPage />}
                 />
               </Route>
 
@@ -172,13 +124,7 @@ export default function App() {
               >
                 <Route
                   path="/qc"
-                  element={
-                    <PlaceholderPage
-                      title="Hasil QC"
-                      code="SCR-13"
-                      subtitle="QC hanya mencatat jumlah barang yang lolos"
-                    />
-                  }
+                  element={<QcPage />}
                 />
               </Route>
             </Route>
