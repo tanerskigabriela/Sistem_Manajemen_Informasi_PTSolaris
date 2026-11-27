@@ -193,6 +193,18 @@ export class UsersService extends BaseService {
         );
       }
 
+            if (
+        existing.role_code === ROLE.PIMPINAN &&
+        (input.is_active === false ||
+          (input.role_code && input.role_code !== ROLE.PIMPINAN))
+      ) {
+        throw new AppError(
+          403,
+          ERROR_CODE.AUTH_FORBIDDEN,
+          'Akun Pimpinan tidak dapat dinonaktifkan atau diubah perannya.',
+        );
+      }
+
       if (
         targetUserId.toLowerCase() === actor.id.toLowerCase() &&
         input.is_active === false

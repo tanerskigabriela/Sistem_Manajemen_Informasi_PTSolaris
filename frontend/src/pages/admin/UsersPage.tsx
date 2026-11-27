@@ -257,6 +257,9 @@ export default function UsersPage() {
   const isSelf = (row: UserRecord) =>
     currentUser?.id.toLowerCase() === row.id.toLowerCase();
 
+  const cannotDeactivate = (row: UserRecord) =>
+    isSelf(row) || row.role_code === 'PIMPINAN';
+
   const employeeOptions: SelectOption[] = employees.map((emp) => ({
     value: emp.id,
     label: `${emp.full_name} — ${emp.division_name} (${emp.position_name})`,
@@ -308,7 +311,7 @@ export default function UsersPage() {
         if (row.role_code === 'SUPERADMIN') {
           return <span className="text-xs text-ink-muted">Terkunci sistem</span>;
         }
-        const selfAccount = isSelf(row);
+        const disableDeactivate = cannotDeactivate(row) && row.is_active;
         return (
           <div className="flex flex-wrap items-center gap-3 text-xs font-bold">
             <button
@@ -320,16 +323,18 @@ export default function UsersPage() {
             </button>
             <button
               type="button"
-              disabled={selfAccount && row.is_active}
+              disabled={disableDeactivate}
               title={
-                selfAccount && row.is_active
-                  ? 'Tidak dapat menonaktifkan akun sendiri'
+                disableDeactivate
+                  ? row.role_code === 'PIMPINAN'
+                    ? 'Akun Pimpinan tidak dapat dinonaktifkan'
+                    : 'Tidak dapat menonaktifkan akun sendiri'
                   : undefined
               }
               onClick={() => openToggleModal(row)}
               className={[
                 'underline underline-offset-2',
-                selfAccount && row.is_active
+                disableDeactivate
                   ? 'cursor-not-allowed text-ink-subtle no-underline'
                   : row.is_active
                     ? 'cursor-pointer text-danger decoration-danger hover:text-danger-hover'
@@ -556,13 +561,21 @@ export default function UsersPage() {
             label="Status akun"
             checked={editActive}
             onChange={setEditActive}
-            disabled={editingUser ? isSelf(editingUser) : false}
+            disabled={
+              editingUser
+                ? cannotDeactivate(editingUser) && editingUser.is_active
+                : false
+            }
           />
-          {editingUser && isSelf(editingUser) && (
-            <p className="text-xs text-ink-muted">
-              Status aktif akun Anda sendiri tidak dapat dinonaktifkan.
-            </p>
-          )}
+          {editingUser &&
+            cannotDeactivate(editingUser) &&
+            editingUser.is_active && (
+              <p className="text-xs text-ink-muted">
+                {editingUser.role_code === 'PIMPINAN'
+                  ? 'Akun Pimpinan tidak dapat dinonaktifkan.'
+                  : 'Status aktif akun Anda sendiri tidak dapat dinonaktifkan.'}
+              </p>
+            )}
         </div>
       </Modal>
 
